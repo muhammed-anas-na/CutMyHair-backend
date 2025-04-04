@@ -78,8 +78,8 @@ export const sendOTP = async (req, res, next) => {
     const otp = Math.floor(1000 + Math.random() * 9000);
     req.session.otp = otp;
     req.session.phone_number = phone_number;
-
-    console.log(`OTP for ${phone_number}: ${otp}`);
+    
+    console.log(`OTP for ${phone_number}: ${req.session.otp}`);
 
     return res.status(200).json({
       success: true,
