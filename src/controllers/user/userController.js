@@ -100,6 +100,7 @@ export const verifyOTP = async (req, res, next) => {
 
     const storedOTP = req.session.otp;
     const phone_number = req.session.phone_number;
+    console.log(storedOTP, phone_number);
     if (!storedOTP || !phone_number) {
       return res.status(400).json({ success: false, message: 'OTP not found or expired' });
     }
