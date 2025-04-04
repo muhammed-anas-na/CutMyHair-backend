@@ -95,6 +95,7 @@ export const sendOTP = async (req, res, next) => {
 
 export const verifyOTP = async (req, res, next) => {
   try {
+    console.log(req.session);
     const { name, otp, from } = req.body;
     if (!otp || !from) return res.status(400).json({ success: false, message: 'Invalid fields' });
 
