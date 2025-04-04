@@ -13,9 +13,10 @@ const app = express();
 // Middleware setup
 app.use(express.json());
 app.use(cors({
-    origin: '*',
+    origin: 'https://cut-my-hair-frontend.vercel.app',
     credentials: true,
-}));
+  }));
+  
 
 app.use(
     session({
