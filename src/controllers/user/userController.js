@@ -11,6 +11,10 @@ import {
   getBookings_FROM_DB,
   getBookingsDetails_FROM_DB,
   search_FROM_DB,
+  getAllSalons_From_DB,
+  AddFavoritesToDB,
+  RemoveFavorites_FROM_DB,
+  getFavorites_FROM_DB
 } from '../../repository/userRepository.js';
 import axios from 'axios';
 import Salon from '../../models/salonModel.js';
@@ -225,10 +229,9 @@ export const getLocationFromText = async (req, res, next) => {
 
 export const getNearestSalon = async(req,res,next)=>{
   try{
-    const {latitude, longitude, radius=5} = req.body;
-    console.log(req.body);
+    const {latitude, longitude, radius=5, user_id} = req.body;
     if(!latitude || !longitude || !radius) return res.status(400).json({success: false, message: "All field required"});
-    const response = await getNearestSalon_From_DB(latitude,longitude,radius);
+    const response = await getNearestSalon_From_DB(latitude,longitude,radius, user_id);
     console.log(response)
     return res.status(200).json(response)
 
@@ -313,63 +316,43 @@ export const search = async(req,res,next)=>{
 
 export const getAvailableTimeSlots = async (req, res, next) => {
   try {
-    // Step 1: Parse and validate request parameters
     const { salon_id, date, total_duration } = req.query;
     console.log('Request Params:', { salon_id, date, total_duration });
 
     if (!salon_id || !date || !total_duration) {
-      return res.status(400).json({
-        success: false,
-        message: 'Missing required parameters: salon_id, date, and total_duration are required',
-      });
+      return res.status(400).json({ success: false, message: 'Missing required parameters' });
     }
 
     const duration = parseInt(total_duration);
     console.log('Parsed Duration:', duration);
     if (isNaN(duration) || duration <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'total_duration must be a positive number',
-      });
+      return res.status(400).json({ success: false, message: 'total_duration must be a positive number' });
     }
 
-    // Step 2: Validate date is not in the past
-    const requestedDate = new Date(date); // Expecting YYYY-MM-DD
+    const requestedDate = new Date(date);
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize to start of day
+    today.setHours(0, 0, 0, 0);
     console.log('Requested Date:', requestedDate);
     console.log('Today (normalized):', today);
 
     if (requestedDate < today) {
-      return res.status(400).json({
-        success: false,
-        message: 'Cannot book appointments for past dates',
-        timeSlots: [],
-      });
+      return res.status(400).json({ success: false, message: 'Cannot book appointments for past dates', timeSlots: [] });
     }
 
-    // Step 3: Fetch salon data
     const salon = await Salon.findOne({ salon_id });
     console.log('Salon Data:', salon);
     if (!salon) {
-      return res.status(404).json({
-        success: false,
-        message: 'Salon not found',
-      });
+      return res.status(404).json({ success: false, message: 'Salon not found' });
     }
 
     const salonCapacity = salon.number_of_seats || 1;
     const slotInterval = 15;
     console.log('Salon Capacity:', salonCapacity, 'Slot Interval:', slotInterval);
 
-    // Step 4: Parse date and get working hours
     const dateObj = new Date(date);
     console.log('Date Object:', dateObj);
     if (isNaN(dateObj)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid date format',
-      });
+      return res.status(400).json({ success: false, message: 'Invalid date format' });
     }
 
     const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
@@ -377,14 +360,9 @@ export const getAvailableTimeSlots = async (req, res, next) => {
     console.log('Day of Week:', dayOfWeek, 'Working Hours:', dayWorkingHours);
 
     if (!dayWorkingHours || !dayWorkingHours.isOpen) {
-      return res.status(200).json({
-        success: true,
-        message: 'Salon is closed on this date',
-        timeSlots: [],
-      });
+      return res.status(200).json({ success: true, message: 'Salon is closed on this date', timeSlots: [] });
     }
 
-    // Step 5: Extract working hours
     const openTime = `${dayWorkingHours.start.getUTCHours().toString().padStart(2, '0')}:${dayWorkingHours.start.getUTCMinutes().toString().padStart(2, '0')}`;
     const closeTime = `${dayWorkingHours.end.getUTCHours().toString().padStart(2, '0')}:${dayWorkingHours.end.getUTCMinutes().toString().padStart(2, '0')}`;
     const openMinutes = convertTimeToMinutes(openTime);
@@ -392,21 +370,46 @@ export const getAvailableTimeSlots = async (req, res, next) => {
     console.log('Open Time (UTC):', openTime, 'Close Time (UTC):', closeTime);
     console.log('Open Minutes:', openMinutes, 'Close Minutes:', closeMinutes);
 
-    // Step 6: Determine start time (round to next slot if today)
+    // Normalize both dates to UTC for proper date comparison
     const now = new Date();
-    const isToday = dateObj.toDateString() === now.toDateString();
+    const nowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 
+                                   now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds()));
+    const dateObjUTC = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate()));
+    
+    // Compare dates properly in UTC to avoid timezone issues
+    const isToday = dateObjUTC.toDateString() === nowUTC.toDateString();
+    console.log('Is Today Check:', isToday, 'Now UTC:', nowUTC, 'Date Obj UTC:', dateObjUTC);
+
     let startTime = openTime;
     if (isToday) {
-      const currentTime = `${now.getUTCHours().toString().padStart(2, '0')}:${now.getUTCMinutes().toString().padStart(2, '0')}`;
-      startTime = roundToNextTimeSlot(currentTime, slotInterval);
-      console.log('Today Detected - Current Time (UTC):', currentTime, 'Rounded Start Time:', startTime);
+      // For today, we need to find the current time in IST
+      const nowIST = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+      const currentTimeIST = `${nowIST.getHours().toString().padStart(2, '0')}:${nowIST.getMinutes().toString().padStart(2, '0')}`;
+      console.log('Current Time (IST):', currentTimeIST);
+      
+      // Convert IST time to UTC equivalent for comparison with salon's UTC hours
+      // IST is UTC+5:30, so we need to subtract 5.5 hours (330 minutes)
+      const currentMinutesIST = convertTimeToMinutes(currentTimeIST);
+      const currentMinutesUTC = currentMinutesIST - 330;
+      const currentTimeUTC = convertMinutesToTime(currentMinutesUTC > 0 ? currentMinutesUTC : currentMinutesUTC + 24 * 60);
+      console.log('Current Time (UTC):', currentTimeUTC);
+      
+      startTime = roundToNextTimeSlot(currentTimeUTC, slotInterval);
+      const startMinutes = convertTimeToMinutes(startTime);
+      
+      if (startMinutes < openMinutes) startTime = openTime;
+      if (startMinutes >= closeMinutes || startMinutes + duration > closeMinutes) {
+        return res.status(200).json({ success: true, message: 'No available slots remaining today', timeSlots: [] });
+      }
+      console.log('Today Detected - Rounded Start Time (UTC):', startTime);
     } else {
-      console.log('Not Today - Start Time:', startTime);
+      console.log('Not Today - Start Time (UTC):', startTime);
     }
 
-    // Step 7: Fetch existing bookings
-    const startOfDay = new Date(dateObj.setHours(0, 0, 0, 0));
-    const endOfDay = new Date(dateObj.setHours(23, 59, 59, 999));
+    const startOfDay = new Date(dateObj);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(dateObj);
+    endOfDay.setHours(23, 59, 59, 999);
     console.log('Start of Day:', startOfDay, 'End of Day:', endOfDay);
 
     const bookings = await Booking.find({
@@ -414,9 +417,8 @@ export const getAvailableTimeSlots = async (req, res, next) => {
       appointment_date: { $gte: startOfDay, $lte: endOfDay },
       status: { $nin: ['cancelled', 'no-show'] },
     });
-    console.log('Bookings:', bookings);
+    console.log('Bookings Count:', bookings.length);
 
-    // Key fix: Properly format booking times for correct comparison
     const formattedBookings = bookings.map((booking) => ({
       seat: booking.seat,
       startTime: standardizeTimeFormat(booking.scheduled_start_time),
@@ -424,7 +426,6 @@ export const getAvailableTimeSlots = async (req, res, next) => {
     }));
     console.log('Formatted Bookings:', formattedBookings);
 
-    // Step 8: Generate and filter time slots
     const timeSlots = [];
     let currentMinutes = convertTimeToMinutes(startTime);
     console.log('Initial Current Minutes:', currentMinutes);
@@ -432,9 +433,8 @@ export const getAvailableTimeSlots = async (req, res, next) => {
     while (currentMinutes + duration <= closeMinutes) {
       const slotStartTime = convertMinutesToTime(currentMinutes);
       const slotEndTime = convertMinutesToTime(currentMinutes + duration);
-      console.log('Slot Start Time:', slotStartTime, 'Slot End Time:', slotEndTime);
+      console.log('Checking Slot:', slotStartTime, '-', slotEndTime);
 
-      // Count available seats for this time slot
       let availableSeats = 0;
       for (let seatIndex = 0; seatIndex < salonCapacity; seatIndex++) {
         if (!hasConflict(slotStartTime, slotEndTime, seatIndex, formattedBookings)) {
@@ -452,15 +452,13 @@ export const getAvailableTimeSlots = async (req, res, next) => {
 
       currentMinutes += slotInterval;
     }
-    console.log('Generated Time Slots:', timeSlots);
+    console.log('Generated Time Slots Count:', timeSlots.length);
 
-    // Step 9: Return response
     return res.status(200).json({
       success: true,
       message: 'Available time slots retrieved successfully',
       data: { timeSlots },
     });
-
   } catch (err) {
     console.error('Error in getAvailableTimeSlots:', err);
     next(err);
@@ -475,6 +473,10 @@ function convertTimeToMinutes(timeString) {
 
 // Helper function to convert minutes back to time format
 function convertMinutesToTime(minutes) {
+  // Handle negative minutes or minutes > 24 hours
+  while (minutes < 0) minutes += 24 * 60;
+  minutes = minutes % (24 * 60);
+  
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
@@ -525,4 +527,60 @@ function hasConflict(startTime, endTime, seatIndex, bookings) {
     // Not (slot ends before booking starts OR slot starts after booking ends)
     return !(slotEnd <= bookingStart || slotStart >= bookingEnd);
   });
+}
+
+
+export const getAllSalons = async(req,res,next)=>{
+  try{
+    const response = await getAllSalons_From_DB();
+    return res.status(200).json({
+      success:true,
+      response
+    })
+  }catch(err){
+    next(err);
+  }
+}
+
+
+export const addToFavorites = async(req,res,next)=>{
+  try{
+    const {salon_id , user_id} = req.body;
+    if(!salon_id || !user_id){
+      return res.status(400).json({success: false, message: "All Fields Requried"})
+    }
+    const response = await AddFavoritesToDB(salon_id, user_id);
+    return res.status(200).json({success:true, response});
+  }catch(err){
+    console.log(err);
+    next(err);
+  }
+}
+
+export const removeFromFavorites = async(req,res,next)=>{
+  try{
+    const {salon_id , user_id} = req.body;
+    if(!salon_id || !user_id){
+      return res.status(400).json({success: false, message: "All Fields Requried"})
+    }
+    const response = await RemoveFavorites_FROM_DB(salon_id, user_id);
+    return res.status(200).json({success:true, response});
+  }catch(err){
+    console.log(err);
+    next(err);
+  }
+}
+
+export const getAllFavorites = async(req,res,next)=>{
+  try{
+    const {user_id} = req.body;
+    console.log(req.body)
+    if(!user_id){
+      return res.status(400).json({success: false, message: "All Fields Required"})
+    }
+    const data = await getFavorites_FROM_DB(user_id)
+    return res.status(200).json({success:true, data})
+  }catch(err){
+    next(err);
+  }
 }

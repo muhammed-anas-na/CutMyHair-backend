@@ -13,7 +13,11 @@ import { sendOTP,
     getUserBookings,
     getBookingDetails,
     search,
-    getAvailableTimeSlots
+    getAvailableTimeSlots,
+    getAllSalons,
+    addToFavorites,
+    removeFromFavorites,
+    getAllFavorites
 } from '../controllers/user/userController.js';
 import { authenticateToken } from '../middlewares/validatejwt.js';
 const router = express.Router();
@@ -32,5 +36,9 @@ router.post('/confirm-booking', confirmBooking)
 router.post('/get-user-bookings', getUserBookings)
 router.post('/get-booking-details', getBookingDetails);
 router.post('/search', search)
-router.get('/get-time-slots',getAvailableTimeSlots)
+router.get('/get-time-slots',getAvailableTimeSlots);
+router.get('/get-all-salons', getAllSalons)
+router.post('/add-to-favorites', addToFavorites)
+router.post('/remove-from-favorites', removeFromFavorites)
+router.post('/get-favorites', getAllFavorites)
 export default router;

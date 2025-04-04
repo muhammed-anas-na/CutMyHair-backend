@@ -49,8 +49,7 @@ const userSchema = new mongoose.Schema(
         favorites: [
             {
                 salon_id: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: 'Salon',
+                    type: String
                 },
             },
         ],

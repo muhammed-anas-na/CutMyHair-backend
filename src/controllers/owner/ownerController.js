@@ -10,6 +10,7 @@ import {
     updateWorkingHour_ON_DB,
     addService_TO_DB,
     getAppoinmentOf_SALON_FROM_DB,
+    Add_Category_TO_DB
 
 } from "../../repository/ownerRepository.js";
 import Booking from '../../models/bookingModel.js';
@@ -223,30 +224,36 @@ export const updateWorkingHours =async(req,res, next)=>{
         updateWorkingHour_ON_DB(salon_id, workingHour);
         return res.status(200).json({
             success: true,
-            message: "Number of seats updated successfully",
+            message: "Working Hour Updated",
         });
     }catch(err){
         next(err);
     }
 }
 
-export const addService = async(req,res,next)=>{
-  try{
-    const {salon_id,name, description, price, duration, category,status} = req.body;
-    if(!salon_id || !name || !description || !price || !duration || !category || !status) return res.status(400).json({success: false, message: "All fields requried"})
-    console.log()
-
-    const response = await addService_TO_DB(salon_id,name, description, price, duration, category,status)
-    console.log(response);
+export const addService = async (req, res, next) => {
+  try {
+    const { salon_id, name, description, price, duration, category, status, category_id } = req.body;
+    
+    // Required fields validation
+    if (!salon_id || !name || !price || !duration || !category) {
+      return res.status(400).json({
+        success: false,
+        message: "Required fields: salon_id, name, price, duration, category"
+      });
+    }
+    console.log("Reqbody==>",req.body)
+    const response = await addService_TO_DB(salon_id, name, description, price, duration, category, status, category_id);
+    
     return res.status(200).json({
       success: true,
       message: "Service Added Successfully",
       data: response
-    })
-  }catch(err){
+    });
+  } catch (err) {
     next(err);
   }
-}
+};
 
 export const getAppoinmentsOfSalon = async(req, res, next) => {
   try {
@@ -270,3 +277,19 @@ export const getAppoinmentsOfSalon = async(req, res, next) => {
     next(err);
   }
 };
+
+export const addCategory = async(req,res,next)=>{
+  try{
+    console.log(req.body);
+    const {name, description, category_id, salon_id} = req.body;
+    if(!name || !category_id || !salon_id) return res.status(400).json({success:false, message:"All fields Required"})
+    const response = await Add_Category_TO_DB(name,description,category_id, salon_id);
+  console.log(response);
+    return res.status(200).json({
+      success:true,
+      response
+    })
+  }catch(err){
+    next(err);
+  }
+}

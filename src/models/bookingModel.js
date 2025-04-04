@@ -32,12 +32,10 @@ const BookingSchema = new Schema({
   scheduled_start_time: {
     type: String,
     required: true,
-    match: /^(1[0-2]|0?[1-9]):[0-5][0-9] (AM|PM)$/ // Validates "HH:MM AM/PM"
   },
   scheduled_end_time: {
     type: String,
     required: true,
-    match: /^(1[0-2]|0?[1-9]):[0-5][0-9] (AM|PM)$/ // Validates "HH:MM AM/PM"
   },
   actual_start_time: { type: Date },
   actual_end_time: { type: Date },
