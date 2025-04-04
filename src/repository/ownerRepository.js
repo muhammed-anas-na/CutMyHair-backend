@@ -25,6 +25,7 @@ export const addSalonToDB = async ({
     longitude
 }) => {
     try {
+      console.log("Ownerid==>",owner_id)
         const newSalon = {
             name: salonName,
             owner_id: owner_id,
@@ -164,51 +165,48 @@ export const updateWorkingHour_ON_DB = async (salon_id, workingHours) => {
   }
 };
 
-export const addService_TO_DB = async(salon_id, name, description, price, duration, category, status) => {
-    try {
-      // Validate inputs
-      if (!salon_id || !name || !price || !duration || !category) {
-        throw new Error('Missing required fields for service');
-      }
-      
-      // Create a unique service ID
-      const service_id = new mongoose.Types.ObjectId().toString();
-      
-      // Create the new service object
-      const newService = {
-        service_id,
-        name,
-        description: description || '',
-        price,
-        duration,
-        category,
-        status: status || 'available',
-        created_at: new Date(),
-        updated_at: new Date()
-      };
-      
-      // Find the salon and push the new service to its services array
-      const updatedSalon = await Salon.findOneAndUpdate(
-        { salon_id: salon_id },
-        { $push: { services: newService } },
-        { new: true, runValidators: true }
-      );
-      
-      if (!updatedSalon) {
-        throw new Error(`Salon with ID ${salon_id} not found`);
-      }
-      
-      // Return the newly added service
-      const addedService = updatedSalon.services.find(
-        service => service.service_id === service_id
-      );
-      
-      return addedService;
-      
-    } catch (error) {
-      console.error('Error adding service to salon:', error);
-      throw new Error(`Failed to add service: ${error.message}`);
+// DB Function: addService_TO_DB
+export const addService_TO_DB = async (salon_id, name, description, price, duration, category, status, category_id) => {
+  try {
+    // Create a unique service ID
+    const service_id = new mongoose.Types.ObjectId().toString();
+    
+    // Create the new service object
+    const newService = {
+      service_id,
+      name,
+      description: description || '',
+      price: Number(price), // Ensure price is stored as a number
+      duration,
+      category, // This is the service type (Female/Male/Unisex)
+      status: status || 'available',
+      category_id: category_id || null, // Store category_id if provided, null otherwise
+      created_at: new Date(),
+      updated_at: new Date()
+    };
+    console.log("New service=>", newService);
+    // Find the salon and push the new service to its services array
+    const updatedSalon = await Salon.findOneAndUpdate(
+      { salon_id: salon_id },
+      { $push: { services: newService } },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedSalon) {
+      throw new Error(`Salon with ID ${salon_id} not found`);
     }
+
+    // Return the newly added service
+    const addedService = updatedSalon.services.find(
+      service => service.service_id === service_id
+    );
+
+    return addedService;
+
+  } catch (error) {
+    console.error('Error adding service to salon:', error);
+    throw new Error(`Failed to add service: ${error.message}`);
+  }
 };
 
 export const getAppoinmentOf_SALON_FROM_DB = async (salon_id, date) => {
@@ -286,5 +284,20 @@ export const getAppoinmentOf_SALON_FROM_DB = async (salon_id, date) => {
     return { success: false, error: error.message };
   }
 };
+
+export const Add_Category_TO_DB = async(name,description,id,salon_id)=>{
+  const newCategory = {
+    category_id: id,
+    name: name,
+    description: description
+  };
+  console.log('new=>',newCategory)
+  const updatedSalon = await Salon.findOneAndUpdate(
+    { salon_id },
+    { $push: { categories: newCategory } },
+    { new: true, runValidators: true } 
+  );
+  return updatedSalon;
+}
 
 
