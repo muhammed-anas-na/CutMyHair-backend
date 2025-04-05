@@ -7,51 +7,39 @@ import ownerRoutes from './routes/owner.js';
 import blogRoutes from './routes/blog.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import session from 'express-session';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 
 // Trust the proxy for secure cookies in production
 app.set('trust proxy', 1);
 
+// Determine environment (use 'production' as the standard value)
+const isProduction = process.env.NODE_ENV === 'prod';
 // Middleware setup
 app.use(express.json());
 app.use(cors({
-    origin: 'https://cut-my-hair-frontend.vercel.app',
+    origin: isProduction ? 'https://cut-my-hair-frontend.vercel.app' : 'http://localhost:3000',
     credentials: true,
 }));
 
-// Session configuration
 app.use(
     session({
-        secret: 'your-secret-key', // Change this to a real secret in production
+        secret: 'your-secret-key',
         resave: false,
-        saveUninitialized: false, // Changed to false to avoid creating empty sessions
+        saveUninitialized: false,
         cookie: {
-            secure: true, // Must be true for cross-origin cookies with sameSite: 'none'
+            secure: isProduction,
             httpOnly: true,
-            maxAge: 1000 * 60 * 5, // 5 minutes
-            sameSite: 'none' // Required for cross-origin requests
+            maxAge: 1000 * 60 * 5, 
+            sameSite: isProduction ? 'none' : 'lax'
         },
     })
 );
 
 // Route definitions
-app.get('/api/test', (req, res) => {
-    // Test route that shows session is working
-    if (!req.session.views) {
-        req.session.views = 1;
-    } else {
-        req.session.views++;
-    }
-    res.status(200).json({
-        message: "Success",
-        sessionData: {
-            views: req.session.views,
-            id: req.session.id
-        }
-    });
-});
-
 app.use('/api/users', userRoutes);
 app.use('/api/owner', ownerRoutes);
 app.use('/api/salons', salonRoutes);
