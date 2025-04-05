@@ -18,6 +18,7 @@ app.set('trust proxy', 1);
 
 // Determine environment (use 'production' as the standard value)
 const isProduction = process.env.NODE_ENV === 'prod';
+console.log("Env ==>" , process.env.NODE_ENV  , isProduction);
 // Middleware setup
 app.use(express.json());
 app.use(cors({
