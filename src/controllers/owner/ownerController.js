@@ -10,11 +10,11 @@ import {
     updateWorkingHour_ON_DB,
     addService_TO_DB,
     getAppoinmentOf_SALON_FROM_DB,
-    Add_Category_TO_DB
-
+    Add_Category_TO_DB,
+    getDashboardData_From_DB,
+    addNewAppoint_By_Owner_Into_DB,
+    getReports_FROM_DN
 } from "../../repository/ownerRepository.js";
-import Booking from '../../models/bookingModel.js';
-import Salon from '../../models/salonModel.js';
     
 /**
  * Function to send an OTP
@@ -289,6 +289,37 @@ export const addCategory = async(req,res,next)=>{
       success:true,
       response
     })
+  }catch(err){
+    next(err);
+  }
+}
+
+export const getDashboardData = async(req,res,next)=>{
+  try{
+    console.log(req.body);
+    const {userId} = req.body;
+    const response = await getDashboardData_From_DB(userId)
+    res.status(200).json(response)
+  }catch(err){
+    next(err);
+  }
+}
+
+export const addNewAppoinmentByOwner = async(req,res,next)=>{
+  try{
+    const response = await addNewAppoint_By_Owner_Into_DB(req.body);
+    return res.json(response);;
+  }catch(err){
+    next(err);
+  }
+}
+
+export const getReports = async(req,res,next)=>{
+  try{
+    const {salon_id} = req.body;
+    console.log(salon_id);
+    const response = await getReports_FROM_DN(salon_id);
+    res.status(200).json(response);
   }catch(err){
     next(err);
   }
