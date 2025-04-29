@@ -393,7 +393,7 @@ export const getDashboardData_From_DB = async (owner_id, filter = {}) => {
         },
         {
           title: 'Total Revenue',
-          value: `$${totalRevenue.toFixed(2)}`,
+          value: `₹${totalRevenue.toFixed(2)}`,
           change: { direction: 'up', value: '0%', text: 'vs last period' },
           type: 'revenue',
           icon: 'DollarSign'
@@ -970,3 +970,8 @@ export const getSalonReportsOptimized = async (req, res) => {
     });
   }
 };
+
+export const getOwnerProfile_FROM_DB = async(owner_id)=>{
+
+}
+

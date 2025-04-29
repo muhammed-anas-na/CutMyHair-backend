@@ -13,102 +13,130 @@ import {
     Add_Category_TO_DB,
     getDashboardData_From_DB,
     addNewAppoint_By_Owner_Into_DB,
-    getReports_FROM_DN
-} from "../../repository/ownerRepository.js";
+    getReports_FROM_DN,
+    getOwnerProfile_FROM_DB
     
-/**
- * Function to send an OTP
- */
+} from "../../repository/ownerRepository.js";
+import OTP from '../../models/otpModel.js'
+
 export const sendOTP = async (req, res, next) => {
-    try {
-      const { phone_number, from } = req.body;
-  
-      if (!phone_number) {
-        return res.status(400).json({ success: false, message: 'Phone number is required' });
+  try {
+    const { phone_number, from } = req.body;
+
+    if (!phone_number) {
+      return res.status(400).json({ success: false, message: 'Phone number is required' });
+    }
+
+    if (!['register', 'login'].includes(from)) {
+      return res.status(400).json({ success: false, message: 'Invalid operation' });
+    }
+
+    const userExists = await findOwnerFromDB_BY_Number(phone_number);
+
+    if (from === 'register' && userExists) {
+      return res.status(400).json({ success: false, message: 'Phone number already exists' });
+    }
+    if (from === 'login' && !userExists) {
+      return res.status(400).json({ success: false, message: 'Phone number not registered' });
+    }
+
+    // Generate and store OTP using the schema
+    const { otpId, otp } = await OTP.generateOTP(phone_number, from);
+    
+    console.log(`Owner OTP for ${phone_number}: ${otp}`);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Owner OTP sent successfully',
+      data: { 
+        otp_id: otpId,
+        otp_expiry: 300 // 5 minutes in seconds
+      },
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const verifyOTP = async (req, res, next) => {
+  try {
+    console.log(req.body);
+    const { name, otp, otp_id, from } = req.body;
+
+    if (!otp || !otp_id || !from) {
+      return res.status(400).json({ success: false, message: 'OTP, OTP ID, and operation type are required' });
+    }
+
+    if (!['register', 'login'].includes(from)) {
+      return res.status(400).json({ success: false, message: 'Invalid operation' });
+    }
+
+    // Verify OTP using the schema
+    const verification = await OTP.verifyOTP(otp_id, otp);
+
+    if (!verification.success) {
+      return res.status(400).json(verification);
+    }
+
+    // Check if the purpose matches the request
+    if (verification.purpose !== from) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'OTP purpose mismatch' 
+      });
+    }
+
+    const phone_number = verification.phoneNumber;
+
+    if (from === 'login') {
+      const existingOwner = await findOwnerFromDB_BY_Number(phone_number);
+      if (!existingOwner) {
+        return res.status(401).json({ success: false, message: 'No owner found' });
       }
-  
-      const userExists = await findOwnerFromDB_BY_Number(phone_number);
-  
-      if (from === 'register' && userExists) {
-        return res.status(400).json({ success: false, message: 'Phone number already exists' });
-      }
-      if(from == 'login' && !userExists){
-        return res.status(400).json({ success: false, message: 'Phone number not registered' });
-      }
-  
-      // Generate and store OTP
-      const otp = Math.floor(1000 + Math.random() * 9000);
-      req.session.owner_otp = otp;
-      req.session.owner_phone_number = phone_number;
-  
-      console.log(`Owner OTP for ${phone_number}: ${otp}`);
-  
+      
+      const token = generateToken(
+        { owner_id: existingOwner.owner_id, phone_number },
+        existingOwner.role
+      );
+      
       return res.status(200).json({
         success: true,
-        message: 'Owner OTP sent successfully',
-        data: { otp_expiry: 300 },
+        message: 'Login successful',
+        data: { 
+          owner_id: existingOwner.owner_id, 
+          access_token: token 
+        },
       });
-  
-    } catch (err) {
-      next(err);
-    }
-  };
-
-/**
- * Function to Verify OTP
- */
-export const verifyOTP = async (req, res, next) => {
-    try {
-      const { name, otp, from } = req.body;
-      if (!otp || !from) return res.status(400).json({ success: false, message: 'Invalid fields' });
-  
-      const storedOTP = req.session.owner_otp;
-      const phone_number = req.session.owner_phone_number;
-      console.log(storedOTP, phone_number)
-      if (!storedOTP || !phone_number) {
-        console.log("Not found");
-        return res.status(400).json({ success: false, message: 'OTP not found or expired' });
+    } else if (from === 'register') {
+      const existingOwner = await findOwnerFromDB_BY_Number(phone_number);
+      if (existingOwner) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Phone number already used' 
+        });
       }
-
-      console.log(storedOTP, otp)
-      if (storedOTP == otp) {
-        if (from === 'login') {
-          const existingOwner = await findOwnerFromDB_BY_Number(phone_number);
-          if (existingOwner == null) return res.status(401).json({ success: false, message: 'No owner found' });
-          const token = generateToken({ owner_id: existingOwner.owner_id, phone_number }, existingOwner.role);
-          console.log(token, existingOwner)
-          return res.status(200).json({
-            success: true,
-            message: 'Login successful',
-            data: { owner_id: existingOwner.owner_id, access_token: token },
-          });
-        } else if (from === 'register') {
-            
-          const existingOwner = await findOwnerFromDB_BY_Number(phone_number);
-          console.log("Registering the user" ,existingOwner);
-          if (existingOwner != null) return res.status(400).json({ success: false, message: 'Phone number already used' });
-          const response = await addOwnerToDB(name, phone_number);
-          const token = generateToken({ owner_id: response[0].owner_id, phone_number }, response[0].role);
-          req.session.destroy((err) => {
-            if (err) console.error('Error destroying session:', err);
-          });
-          console.log(token, response[0]);
-          return res.status(200).json({
-            success: true,
-            message: 'Owner Registration successful',
-            data: { owner_id: response[0]._id, access_token: token },
-          });
-        } else {
-          return res.status(400).json({ success: false, message: 'Invalid operation' });
-        }
-      } else {
-        return res.status(400).json({ success: false, message: 'Invalid OTP' });
-      }
-    } catch (err) {
-      next(err);
+      
+      const response = await addOwnerToDB(name, phone_number);
+      const token = generateToken(
+        { owner_id: response[0].owner_id, phone_number },
+        response[0].role
+      );
+      
+      return res.status(200).json({
+        success: true,
+        message: 'Owner Registration successful',
+        data: { 
+          owner_id: response[0].owner_id, 
+          access_token: token 
+        },
+      });
     }
+
+  } catch (err) {
+    next(err);
+  }
 };
-  
 
 export const addSalon = async (req, res, next) => {
     if (!req.body) {
@@ -324,3 +352,14 @@ export const getReports = async(req,res,next)=>{
     next(err);
   }
 }
+
+export const getOwnerProfile = async(req,res,next)=>{
+  try{
+    const {user_id} = req.body;
+    const response = await getOwnerProfile_FROM_DB(user_id);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+

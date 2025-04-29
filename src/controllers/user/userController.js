@@ -19,44 +19,12 @@ import {
 import axios from 'axios';
 import Salon from '../../models/salonModel.js';
 import Booking from '../../models/bookingModel.js';
+import OTP from '../../models/otpModel.js'
 
 const razorpay = new Razorpay({
   key_id: 'rzp_test_SNNaKxo04yi7Lf',
   key_secret: '8p02U92ji39GYBIQ7om8QUYX',
 })
-
-/**
- * Function to send an OTP
- */
-// export const sendOTP = async(req, res, next) => {
-//   try {
-//     const { phone_number, from } = req.body;
-//     if (!phone_number) {
-//       return res.status(400).json({ success: false, message: 'Phone number is required' });
-//     }
-//     const response = await findUserFromDB_BY_Number(phone_number);
-//     if(from == 'login' && response!=null){
-//       return res.status(200)
-//     }
-//     console.log(response)
-//     if(response == null){
-//       const otp = Math.floor(1000 + Math.random() * 9000);
-//       req.session.otp = otp;
-//       req.session.phone_number = phone_number;
-//       console.log(`OTP for ${phone_number}: ${otp}`);
-//       res.status(200).json({
-//         success: true,
-//         message: 'OTP sent successfully',
-//         data: { otp_expiry: 300 },
-//       });
-//     }else{
-//       return res.status(400).json({success: false, message: "Phone number already exist"})
-//     }
-//   } catch (err) {
-//     next(err);
-//   }
-// };
-
 
 export const sendOTP = async (req, res, next) => {
   try {
@@ -71,25 +39,22 @@ export const sendOTP = async (req, res, next) => {
     if (from === 'register' && userExists) {
       return res.status(400).json({ success: false, message: 'Phone number already exists' });
     }
-    if(from == 'login' && !userExists){
+    if (from === 'login' && !userExists) {
       return res.status(400).json({ success: false, message: 'Phone number not registered' });
     }
+
     // Generate and store OTP
-    const otp = Math.floor(1000 + Math.random() * 9000);
-    if(phone_number == '1234567890'){
-      req.session.otp = '1111'
-    }else{
-      req.session.otp = otp;
-    }
-   
-    req.session.phone_number = phone_number;
+    const { otpId, otp } = await OTP.generateOTP(phone_number, from);
     
-    console.log(`OTP for ${phone_number}: ${req.session.otp}`);
+    console.log(`OTP for ${phone_number}: ${otp}`);
 
     return res.status(200).json({
       success: true,
       message: 'OTP sent successfully',
-      data: { otp_expiry: 300 },
+      data: { 
+        otpId, // Send this to client instead of the actual OTP
+        otp_expiry: 300 
+      },
     });
 
   } catch (err) {
@@ -97,53 +62,49 @@ export const sendOTP = async (req, res, next) => {
   }
 };
 
-
 export const verifyOTP = async (req, res, next) => {
   try {
-    console.log(req.session);
-    const { name, otp, from } = req.body;
-    if (!otp || !from) return res.status(400).json({ success: false, message: 'Invalid fields' });
-
-    const storedOTP = req.session.otp;
-    const phone_number = req.session.phone_number;
-    console.log(storedOTP, phone_number);
-    if (!storedOTP || !phone_number) {
-      return res.status(400).json({ success: false, message: 'OTP not found or expired' });
+    const { name, otp, otpId, from } = req.body;
+    
+    if (!otp || !otpId || !from) {
+      return res.status(400).json({ success: false, message: 'Invalid fields' });
     }
-    const enteredOtp = Array.isArray(otp) ? otp.join('') : otp;
+
+    const verificationResult = await OTP.verifyOTP(otpId, otp);
+    
+    if (!verificationResult.success) {
+      return res.status(400).json({ success: false, message: verificationResult.message });
+    }
+
+    const phone_number = verificationResult.phoneNumber;
+
     if (from === 'login') {
-      console.log("Login", storedOTP, enteredOtp);
-      if (storedOTP == enteredOtp) {
-        const response = await findUserFromDB_BY_Number(phone_number);
-        console.log(response);
-        if(response == null) return res.status(401).json({ success: false, message: 'No user found' });
-        const token = generateToken({ user_id: response.user_id, phone_number }, response.role);
-        return res.status(200).json({
-          success: true,
-          message: 'Login Successful',
-          data: { user_id: response.user_id, access_token: token },
-        });
-      } else {
-        return res.status(400).json({ success: false, message: 'Invalid OTP' });
+      const user = await findUserFromDB_BY_Number(phone_number);
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'No user found' });
       }
-    } else {
-      console.log("ELse")
-      if (storedOTP == enteredOtp) {
-        const user = await findUserFromDB_BY_Number(phone_number);
-        if (user != null) return res.status(400).json({ success: false, message: 'Phone number already used' });
-        const response = await addUserToDB(name, phone_number);
-        const token = generateToken({ user_id: response[0].user_id, phone_number }, response[0].role);
-        req.session.destroy((err) => {
-          if (err) console.error('Error destroying session:', err);
-        });
-        return res.status(200).json({
-          success: true,
-          message: 'OTP verified successfully',
-          data: { user_id: response[0]._id, access_token: token },
-        });
-      } else {
-        return res.status(400).json({ success: false, message: 'Invalid OTP' });
+      const token = generateToken({ user_id: user.user_id, phone_number }, user.role);
+      return res.status(200).json({
+        success: true,
+        message: 'Login Successful',
+        data: { user_id: user.user_id, access_token: token },
+      });
+    } else { // register
+      const existingUser = await findUserFromDB_BY_Number(phone_number);
+      if (existingUser) {
+        return res.status(400).json({ success: false, message: 'Phone number already used' });
       }
+      const response = await addUserToDB(name, phone_number);
+      const token = generateToken({ 
+        user_id: response[0].user_id, 
+        phone_number 
+      }, response[0].role);
+      
+      return res.status(200).json({
+        success: true,
+        message: 'OTP verified successfully',
+        data: { user_id: response[0].user_id, access_token: token },
+      });
     }
   } catch (err) {
     next(err);

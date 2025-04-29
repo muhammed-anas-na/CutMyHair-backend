@@ -13,7 +13,8 @@ import {
     getAppoinmentsOfSalon, 
     addCategory,
     addNewAppoinmentByOwner,
-    getReports
+    getReports,
+    getOwnerProfile
 } from '../controllers/owner/ownerController.js';
 
 const router = express.Router();
@@ -31,5 +32,6 @@ router.post('/add-category', addCategory)
 router.post('/get-dashboard-data', getDashboardData)
 router.post('/add-new-appoinment-by-owner', addNewAppoinmentByOwner)
 router.post('/get-reports', getReports)
+router.post('/get-owner-profile', getOwnerProfile)
 
 export default router;
