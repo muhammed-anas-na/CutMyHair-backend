@@ -14,7 +14,9 @@ import {
     getDashboardData_From_DB,
     addNewAppoint_By_Owner_Into_DB,
     getReports_FROM_DN,
-    getOwnerProfile_FROM_DB
+    addStylist_TO_DB,
+    GET_STYLIST_FROM_SALON_ID,
+    GET_OWNER_SETTINGS
     
 } from "../../repository/ownerRepository.js";
 import OTP from '../../models/otpModel.js'
@@ -353,10 +355,31 @@ export const getReports = async(req,res,next)=>{
   }
 }
 
-export const getOwnerProfile = async(req,res,next)=>{
+
+export const addStylist = async(req,res,next)=>{
+  try{
+    const {salon_id, newStylist} = req.body;
+    const response = await addStylist_TO_DB(salon_id,newStylist);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+
+export const getStylistBySalonID = async(req,res,next)=>{
+  try{
+    const {salon_id} = req.body;
+    const response = await GET_STYLIST_FROM_SALON_ID(salon_id);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+
+export const getSettings = async(req,res,next)=>{
   try{
     const {user_id} = req.body;
-    const response = await getOwnerProfile_FROM_DB(user_id);
+    const response = await GET_OWNER_SETTINGS(user_id);
     res.status(200).json(response);
   }catch(err){
     next(err);

@@ -14,7 +14,9 @@ import {
     addCategory,
     addNewAppoinmentByOwner,
     getReports,
-    getOwnerProfile
+    addStylist,
+    getStylistBySalonID,
+    getSettings
 } from '../controllers/owner/ownerController.js';
 
 const router = express.Router();
@@ -32,6 +34,9 @@ router.post('/add-category', addCategory)
 router.post('/get-dashboard-data', getDashboardData)
 router.post('/add-new-appoinment-by-owner', addNewAppoinmentByOwner)
 router.post('/get-reports', getReports)
-router.post('/get-owner-profile', getOwnerProfile)
+router.post('/get-owner-settings', getSettings)
+router.post('/add-stylist', addStylist)
+router.post('/get-stylist', getStylistBySalonID)
+// router.post('/get-settings' , getSettings)
 
 export default router;

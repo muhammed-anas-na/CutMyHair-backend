@@ -4,6 +4,7 @@ import Salon from '../models/salonModel.js'
 import formatWorkingHours from "../utils/formatWorkingHours.js";
 import Booking from "../models/bookingModel.js";
 import UserModel from "moongose/models/user_model.js";
+import Stylist from "../models/StylistModel.js";
 
 export const addOwnerToDB = async(name, phone_number)=>{
     return Owner.insertMany({
@@ -405,7 +406,7 @@ export const getDashboardData_From_DB = async (owner_id, filter = {}) => {
           // Assuming stylists might be derived from bookings or another field in the future
         });
         return uniqueStylists;
-      }, []).concat(['Alex Rodriguez', 'Taylor Williams', 'Jordan Chen', 'Sam Taylor', 'Morgan Lewis']) // Temporary static stylists
+      }, [])
     };
   } catch (error) {
     console.error("Error in getDashboardData_From_DB:", error);
@@ -489,7 +490,7 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
         payment_id: paymentId,
         order_id: orderId,
         signature: `${paymentId}_${orderId}_${Date.now()}`,
-        payment_status: 'success'
+        payment_status: 'offline'
       },
       status: 'confirmed',
       booking_date: new Date(),
@@ -497,7 +498,8 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
       notes: stylist === 'Any' ? 'Any available stylist' : `Assigned to ${stylist}`,
       buffer_time: 5,
       reminder_sent: false,
-      late_notification_sent: false
+      late_notification_sent: false,
+      stylist: stylist
     });
 
     // Save to database
@@ -971,7 +973,25 @@ export const getSalonReportsOptimized = async (req, res) => {
   }
 };
 
-export const getOwnerProfile_FROM_DB = async(owner_id)=>{
 
+export const addStylist_TO_DB = async (salon_id, newStylist) => {
+  try {
+    return Stylist.findOneAndUpdate(
+      { salon_id },
+      { $push: { stylists: newStylist } },
+      { upsert: true, new: true }
+    );
+  } catch (error) {
+    console.error('Error adding stylist:', error);
+  }
+};
+
+export const GET_STYLIST_FROM_SALON_ID = async(salon_id)=>{
+  return Stylist.find({
+    salon_id
+  });
 }
 
+export const GET_OWNER_SETTINGS = async(owner_id)=>{
+  return Owner.find({owner_id})
+}
