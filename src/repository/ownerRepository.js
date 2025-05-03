@@ -499,7 +499,8 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
       buffer_time: 5,
       reminder_sent: false,
       late_notification_sent: false,
-      stylist: stylist
+      stylist: stylist,
+      payment_type:"Offline"
     });
 
     // Save to database

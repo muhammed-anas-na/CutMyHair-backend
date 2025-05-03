@@ -55,6 +55,10 @@ const BookingSchema = new Schema({
   late_notification_sent: { type: Boolean, default: false },
   seat: { type: Number, required: true, min: 0, default: 0 },
   stylist:String,
+  payment_type:{
+    type: String,
+    default:"Online"
+  }
 }, {
   timestamps: true
 });
