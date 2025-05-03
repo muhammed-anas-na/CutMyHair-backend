@@ -54,6 +54,7 @@ const BookingSchema = new Schema({
   reminder_sent: { type: Boolean, default: false },
   late_notification_sent: { type: Boolean, default: false },
   seat: { type: Number, required: true, min: 0, default: 0 },
+  stylist:String,
 }, {
   timestamps: true
 });
