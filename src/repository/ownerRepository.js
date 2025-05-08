@@ -13,7 +13,6 @@ export const addOwnerToDB = async(name, phone_number)=>{
     })
 }
 
-
 export const addSalonToDB = async ({
     owner_id,
     locationName,
@@ -164,7 +163,6 @@ export const updateWorkingHour_ON_DB = async (salon_id, workingHours) => {
   }
 };
 
-// DB Function: addService_TO_DB
 export const addService_TO_DB = async (salon_id, name, description, price, duration, category, status, category_id) => {
   try {
     // Create a unique service ID
@@ -462,6 +460,10 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
     const endTime = new Date(appointmentDate);
     endTime.setMinutes(endTime.getMinutes() + totalDuration);
 
+    // Format start and end time in local IST format (like the first entry)
+    const formattedStartTime = appointmentDate.toString();
+    const formattedEndTime = endTime.toString();
+
     // Generate unique IDs
     const bookingId = `BOOK_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const paymentId = `PAY_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -482,8 +484,8 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
       user_id: customer.name, // Should ideally be a proper user ID
       services: formattedServices,
       appointment_date: appointmentDate,
-      scheduled_start_time: appointmentDate.toUTCString(), // Matches previous format
-      scheduled_end_time: endTime.toUTCString(), // Matches previous format
+      scheduled_start_time: formattedStartTime,
+      scheduled_end_time: formattedEndTime,
       total_price: totalPrice,
       total_duration: totalDuration,
       payment_details: {
@@ -494,13 +496,13 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
       },
       status: 'confirmed',
       booking_date: new Date(),
-      seat: 1, // Changed from 0 to 1 to avoid potential min constraint issues
+      seat: 1, 
       notes: stylist === 'Any' ? 'Any available stylist' : `Assigned to ${stylist}`,
       buffer_time: 5,
       reminder_sent: false,
       late_notification_sent: false,
       stylist: stylist,
-      payment_type:"Offline"
+      payment_type: 'Offline'
     });
 
     // Save to database
@@ -521,6 +523,7 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
     };
   }
 };
+
 
 export const getReports_FROM_DN = async (salonId, days = 90) => {
   try {
@@ -689,9 +692,6 @@ export const getReports_FROM_DN = async (salonId, days = 90) => {
   }
 };
 
-/**
- * API route handler for getting salon reports
- */
 export const getSalonReports = async (req, res) => {
   try {
     const { salonId } = req.params;
@@ -721,9 +721,6 @@ export const getSalonReports = async (req, res) => {
   }
 };
 
-/**
- * Aggregation-based report generation for better performance with large datasets
- */
 export const getReportsWithAggregation = async (salonId, days = 90) => {
   try {
     if (!salonId) {
@@ -942,9 +939,6 @@ export const getReportsWithAggregation = async (salonId, days = 90) => {
   }
 };
 
-/**
- * Alternative API route handler using aggregation for performance
- */
 export const getSalonReportsOptimized = async (req, res) => {
   try {
     const { salonId } = req.params;
@@ -996,3 +990,166 @@ export const GET_STYLIST_FROM_SALON_ID = async(salon_id)=>{
 export const GET_OWNER_SETTINGS = async(owner_id)=>{
   return Owner.find({owner_id})
 }
+
+export const GET_FINANCE_REPORT_FROM_DB = async (salon_id) => {
+  try {
+    if (!salon_id) {
+      throw new Error("Salon ID is required");
+    }
+
+    // Get the current date
+    const now = new Date();
+    
+    // Calculate start of current month
+    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Calculate start of previous month
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    
+    // Calculate end of previous month
+    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    
+    // Get completed bookings for the salon with successful payments
+    const completedBookings = await Booking.find({
+      salon_id: salon_id,
+      status: 'confirmed',
+      payment_type:"Online",
+      //'payment_details.payment_status': 'success'
+    });
+    
+    // Get all bookings for the current month
+    const currentMonthBookings = await Booking.find({
+      salon_id: salon_id,
+      status: 'confirmed',
+      payment_type:"Online",
+      'payment_details.payment_status': 'success',
+      // appointment_date: { $gte: currentMonthStart, $lte: now }
+    });
+    
+    // Get all bookings for the previous month
+    const previousMonthBookings = await Booking.find({
+      salon_id: salon_id,
+      status: 'confirmed',
+      payment_type:"Online",
+      'payment_details.payment_status': 'success',
+      //appointment_date: { $gte: previousMonthStart, $lte: previousMonthEnd }
+    });
+    
+    // Get pending bookings (confirmed but not completed)
+    const pendingBookings = await Booking.find({
+      salon_id: salon_id,
+      status: 'confirmed',
+      payment_type:"Online",
+      appointment_date: { $gte: now }
+    }).sort({ appointment_date: 1 }).limit(10);
+    
+    // Get recent transactions (all types)
+    const recentTransactions = await Booking.find({
+      salon_id: salon_id,
+      payment_type:"Online",
+      $or: [
+        { status: 'completed' },
+        { status: 'confirmed' }
+      ]
+    }).sort({ booking_date: -1 }).limit(20);
+    
+    // Calculate financial metrics
+    const totalEarnings = completedBookings.reduce((sum, booking) => sum + booking.total_price, 0);
+    console.log(completedBookings)
+    const currentMonthEarnings = currentMonthBookings.reduce((sum, booking) => sum + booking.total_price, 0);
+    
+    const previousMonthEarnings = previousMonthBookings.reduce((sum, booking) => sum + booking.total_price, 0);
+    
+    // Calculate earnings growth rate compared to previous month
+    const growthRate = previousMonthEarnings === 0 ? 
+      100 : // If previous month was 0, set growth to 100%
+      ((currentMonthEarnings - previousMonthEarnings) / previousMonthEarnings) * 100;
+    
+    // Calculate available for withdrawal (assuming 70% of earnings are available)
+    const availableForWithdrawal = Math.floor(totalEarnings * 0.7);
+    
+    // Get withdrawal history (mockup - in a real scenario you'd have a separate model)
+    // This would need to be replaced with actual withdrawal data from your database
+    const withdrawalHistory = [
+      { id: 1, amount: 5000, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7), status: 'completed' },
+      { id: 2, amount: 7500, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14), status: 'completed' },
+      { id: 3, amount: 10000, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 21), status: 'completed' },
+    ];
+    
+    // Calculate total withdrawn (mockup - would be from actual withdrawal data)
+    const totalWithdrawn = withdrawalHistory.reduce((sum, withdrawal) => sum + withdrawal.amount, 0);
+    
+    // Format transactions for the UI
+    const formattedTransactions = recentTransactions.map(booking => {
+      return {
+        id: booking._id.toString(),
+        type: booking.status === 'completed' ? 'deposit' : 'pending',
+        amount: booking.total_price,
+        date: booking.appointment_date.toISOString().split('T')[0],
+        description: `${booking.services.map(s => s.name).join(', ')} - ${booking.stylist || 'Staff'}`
+      };
+    });
+    
+    // Format pending payments for the UI
+    const pendingPayments = pendingBookings.map(booking => {
+      return {
+        id: booking._id.toString(),
+        amount: booking.total_price,
+        date: booking.appointment_date.toISOString().split('T')[0],
+        description: `${booking.services.map(s => s.name).join(', ')} - ${booking.stylist || 'Staff'}`
+      };
+    });
+    
+    // Monthly withdrawal summary data
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December"
+    ];
+    
+    // Sample monthly data (would be from actual data in a real scenario)
+    // Last 6 months withdrawals
+    const monthlySummary = Array(6).fill(0).map((_, i) => {
+      const month = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      return {
+        month: monthNames[month.getMonth()],
+        year: month.getFullYear(),
+        amount: Math.random() * 30000 + 10000 // Random amount between 10k and 40k
+      };
+    }).reverse();
+    
+    // Calculate average, maximum and projections
+    const withdrawalAmounts = withdrawalHistory.map(w => w.amount);
+    const averageWithdrawal = withdrawalAmounts.length > 0 ? 
+      withdrawalAmounts.reduce((sum, amount) => sum + amount, 0) / withdrawalAmounts.length : 0;
+    const largestWithdrawal = Math.max(...withdrawalAmounts, 0);
+    const totalThisMonth = currentMonthBookings.reduce((sum, booking) => sum + booking.total_price, 0) * 0.7;
+    const projectedNextMonth = totalThisMonth * (1 + (growthRate / 100));
+    
+    // Return all the financial data for the UI
+    return {
+      success: true,
+      data: {
+        currentBalance: Math.round(totalEarnings - totalWithdrawn),
+        availableForWithdrawal: Math.round(availableForWithdrawal),
+        totalWithdrawn: Math.round(totalWithdrawn),
+        recentTransactions: formattedTransactions,
+        pendingPayments: pendingPayments,
+        withdrawalHistory: withdrawalHistory,
+        monthlySummary: monthlySummary,
+        metrics: {
+          averageWithdrawal: Math.round(averageWithdrawal),
+          largestWithdrawal: Math.round(largestWithdrawal),
+          totalThisMonth: Math.round(totalThisMonth),
+          projectedNextMonth: Math.round(projectedNextMonth),
+          growthRate: growthRate.toFixed(2)
+        }
+      }
+    };
+  } catch (error) {
+    console.error("Error getting finance report:", error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+};

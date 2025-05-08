@@ -338,33 +338,27 @@ export const getAvailableTimeSlots = async (req, res, next) => {
     console.log('Open Time (UTC):', openTime, 'Close Time (UTC):', closeTime);
     console.log('Open Minutes:', openMinutes, 'Close Minutes:', closeMinutes);
 
-    // Normalize both dates to UTC for proper date comparison
     const now = new Date();
     const nowUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 
                                    now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds()));
     const dateObjUTC = new Date(Date.UTC(dateObj.getUTCFullYear(), dateObj.getUTCMonth(), dateObj.getUTCDate()));
-    
-    // Compare dates properly in UTC to avoid timezone issues
     const isToday = dateObjUTC.toDateString() === nowUTC.toDateString();
     console.log('Is Today Check:', isToday, 'Now UTC:', nowUTC, 'Date Obj UTC:', dateObjUTC);
 
     let startTime = openTime;
     if (isToday) {
-      // For today, we need to find the current time in IST
       const nowIST = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
       const currentTimeIST = `${nowIST.getHours().toString().padStart(2, '0')}:${nowIST.getMinutes().toString().padStart(2, '0')}`;
       console.log('Current Time (IST):', currentTimeIST);
-      
-      // Convert IST time to UTC equivalent for comparison with salon's UTC hours
-      // IST is UTC+5:30, so we need to subtract 5.5 hours (330 minutes)
+
       const currentMinutesIST = convertTimeToMinutes(currentTimeIST);
       const currentMinutesUTC = currentMinutesIST - 330;
       const currentTimeUTC = convertMinutesToTime(currentMinutesUTC > 0 ? currentMinutesUTC : currentMinutesUTC + 24 * 60);
       console.log('Current Time (UTC):', currentTimeUTC);
-      
+
       startTime = roundToNextTimeSlot(currentTimeUTC, slotInterval);
       const startMinutes = convertTimeToMinutes(startTime);
-      
+
       if (startMinutes < openMinutes) startTime = openTime;
       if (startMinutes >= closeMinutes || startMinutes + duration > closeMinutes) {
         return res.status(200).json({ success: true, message: 'No available slots remaining today', timeSlots: [] });
@@ -387,12 +381,30 @@ export const getAvailableTimeSlots = async (req, res, next) => {
     });
     console.log('Bookings Count:', bookings.length);
 
-    const formattedBookings = bookings.map((booking) => ({
-      seat: booking.seat,
-      startTime: standardizeTimeFormat(booking.scheduled_start_time),
-      endTime: standardizeTimeFormat(booking.scheduled_end_time),
-    }));
-    console.log('Formatted Bookings:', formattedBookings);
+    const formattedBookings = bookings
+      .map((booking) => {
+        let startTime = standardizeTimeFormat(booking.scheduled_start_time);
+        let endTime = standardizeTimeFormat(booking.scheduled_end_time);
+
+        if (booking.scheduled_start_time.includes('GMT+0530')) {
+          const startDate = new Date(booking.scheduled_start_time);
+          const endDate = new Date(startDate.getTime() + booking.total_duration * 60 * 1000);
+          if (isNaN(startDate) || isNaN(endDate)) {
+            console.warn(`Invalid booking time for booking ID ${booking._id}`);
+            return null;
+          }
+          startTime = `${startDate.getUTCHours().toString().padStart(2, '0')}:${startDate.getUTCMinutes().toString().padStart(2, '0')}`;
+          endTime = `${endDate.getUTCHours().toString().padStart(2, '0')}:${endDate.getUTCMinutes().toString().padStart(2, '0')}`;
+        }
+
+        return {
+          seat: booking.seat === 0 || booking.seat === 1 ? 0 : booking.seat,
+          startTime,
+          endTime,
+        };
+      })
+      .filter((booking) => booking !== null);
+    console.log('Formatted Bookings (UTC):', formattedBookings);
 
     const timeSlots = [];
     let currentMinutes = convertTimeToMinutes(startTime);
@@ -401,10 +413,11 @@ export const getAvailableTimeSlots = async (req, res, next) => {
     while (currentMinutes + duration <= closeMinutes) {
       const slotStartTime = convertMinutesToTime(currentMinutes);
       const slotEndTime = convertMinutesToTime(currentMinutes + duration);
-      console.log('Checking Slot:', slotStartTime, '-', slotEndTime);
+      console.log('Checking Slot (UTC):', slotStartTime, '-', slotEndTime);
 
       let availableSeats = 0;
       for (let seatIndex = 0; seatIndex < salonCapacity; seatIndex++) {
+        console.log('Checking Seat:', seatIndex);
         if (!hasConflict(slotStartTime, slotEndTime, seatIndex, formattedBookings)) {
           availableSeats++;
         }
@@ -433,70 +446,61 @@ export const getAvailableTimeSlots = async (req, res, next) => {
   }
 };
 
-// Helper function to convert time strings to minutes for easier comparison
+// Helper functions remain the same, except for standardizeTimeFormat
 function convertTimeToMinutes(timeString) {
   const [hours, minutes] = timeString.split(':').map(Number);
   return hours * 60 + minutes;
 }
 
-// Helper function to convert minutes back to time format
 function convertMinutesToTime(minutes) {
-  // Handle negative minutes or minutes > 24 hours
   while (minutes < 0) minutes += 24 * 60;
   minutes = minutes % (24 * 60);
-  
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
 }
 
-// Helper function to round current time to next slot
 function roundToNextTimeSlot(timeString, interval) {
   const minutes = convertTimeToMinutes(timeString);
   const roundedMinutes = Math.ceil(minutes / interval) * interval;
   return convertMinutesToTime(roundedMinutes);
 }
 
-// Helper function to standardize time format (convert "03:30 AM" to "03:30")
 function standardizeTimeFormat(timeString) {
-  // Check if time is in 12-hour format with AM/PM
+  if (timeString.includes('GMT+0530') || timeString.includes('India Standard Time')) {
+    const date = new Date(timeString);
+    if (isNaN(date)) return timeString;
+    const hours = date.getUTCHours().toString().padStart(2, '0');
+    const minutes = date.getUTCMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
   if (timeString.includes('AM') || timeString.includes('PM')) {
     const [time, period] = timeString.split(' ');
     const [hours, minutes] = time.split(':').map(Number);
-    
     if (period === 'AM') {
-      // Convert 12 AM to 00 hours
       const adjustedHours = hours === 12 ? 0 : hours;
       return `${adjustedHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    } else { // PM
-      // Convert to 24-hour format (except 12 PM remains 12)
+    } else {
       const adjustedHours = hours === 12 ? 12 : hours + 12;
       return `${adjustedHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     }
   }
-  
-  // Already in 24-hour format
+
   return timeString;
 }
 
-// Helper function to check for booking conflicts
 function hasConflict(startTime, endTime, seatIndex, bookings) {
   const slotStart = convertTimeToMinutes(startTime);
   const slotEnd = convertTimeToMinutes(endTime);
-  
-  return bookings.some(booking => {
-    // Skip if not the same seat
+
+  return bookings.some((booking) => {
     if (booking.seat !== seatIndex) return false;
-    
     const bookingStart = convertTimeToMinutes(booking.startTime);
     const bookingEnd = convertTimeToMinutes(booking.endTime);
-    
-    // Check for overlap: 
-    // Not (slot ends before booking starts OR slot starts after booking ends)
     return !(slotEnd <= bookingStart || slotStart >= bookingEnd);
   });
 }
-
 
 export const getAllSalons = async(req,res,next)=>{
   try{

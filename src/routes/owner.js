@@ -16,7 +16,8 @@ import {
     getReports,
     addStylist,
     getStylistBySalonID,
-    getSettings
+    getSettings,
+    getFinanceReport
 } from '../controllers/owner/ownerController.js';
 
 const router = express.Router();
@@ -37,6 +38,6 @@ router.post('/get-reports', getReports)
 router.post('/get-owner-settings', getSettings)
 router.post('/add-stylist', addStylist)
 router.post('/get-stylist', getStylistBySalonID)
-// router.post('/get-settings' , getSettings)
+router.post('/get-finance-report', getFinanceReport)
 
 export default router;

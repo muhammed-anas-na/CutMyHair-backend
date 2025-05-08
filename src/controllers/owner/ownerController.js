@@ -16,8 +16,8 @@ import {
     getReports_FROM_DN,
     addStylist_TO_DB,
     GET_STYLIST_FROM_SALON_ID,
-    GET_OWNER_SETTINGS
-    
+    GET_OWNER_SETTINGS,
+    GET_FINANCE_REPORT_FROM_DB
 } from "../../repository/ownerRepository.js";
 import OTP from '../../models/otpModel.js'
 
@@ -65,7 +65,7 @@ export const verifyOTP = async (req, res, next) => {
   try {
     console.log(req.body);
     const { name, otp, otp_id, from } = req.body;
-
+    console.log(otp)
     if (!otp || !otp_id || !from) {
       return res.status(400).json({ success: false, message: 'OTP, OTP ID, and operation type are required' });
     }
@@ -80,7 +80,6 @@ export const verifyOTP = async (req, res, next) => {
     if (!verification.success) {
       return res.status(400).json(verification);
     }
-
     // Check if the purpose matches the request
     if (verification.purpose !== from) {
       return res.status(400).json({ 
@@ -386,3 +385,12 @@ export const getSettings = async(req,res,next)=>{
   }
 }
 
+export const getFinanceReport = async(req,res,next)=>{
+  try{
+    const {salon_id} = req.body;
+    const response = await GET_FINANCE_REPORT_FROM_DB(salon_id);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
