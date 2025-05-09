@@ -21,7 +21,9 @@ import {
     withdrawAmount,
     updateServices,
     updateCategory,
-    deleteStylist
+    deleteStylist,
+    updateSalonImages,
+    deleteSalonImages
 } from '../controllers/owner/ownerController.js';
 
 const router = express.Router();
@@ -47,5 +49,7 @@ router.post('/withdraw-amount', withdrawAmount)
 router.post('/update-services', updateServices)
 router.post('/update-category' , updateCategory)
 router.post('/delete-stylist', deleteStylist)
+router.post('/update-salon-images',updateSalonImages)
+router.post('/delete-salon-images', deleteSalonImages)
 
 export default router;
