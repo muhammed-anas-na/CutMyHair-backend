@@ -17,7 +17,11 @@ import {
     addStylist,
     getStylistBySalonID,
     getSettings,
-    getFinanceReport
+    getFinanceReport,
+    withdrawAmount,
+    updateServices,
+    updateCategory,
+    deleteStylist
 } from '../controllers/owner/ownerController.js';
 
 const router = express.Router();
@@ -39,5 +43,9 @@ router.post('/get-owner-settings', getSettings)
 router.post('/add-stylist', addStylist)
 router.post('/get-stylist', getStylistBySalonID)
 router.post('/get-finance-report', getFinanceReport)
+router.post('/withdraw-amount', withdrawAmount)
+router.post('/update-services', updateServices)
+router.post('/update-category' , updateCategory)
+router.post('/delete-stylist', deleteStylist)
 
 export default router;
