@@ -1285,3 +1285,82 @@ export const DELETE_STYLIST_FROM_DB = async ({ salon_id, id }) => {
     stylist: updatedStylist,
   };
 };
+
+export const UPDATE_SALON_IMAGE_IN_DB = async ({ salon_id, urls }) => {
+  // Validate input
+  console.log(urls);
+  if (!salon_id) {
+    throw new Error("Salon ID is required");
+  }
+  if (!urls || !Array.isArray(urls) || urls.length === 0) {
+    throw new Error("At least one image URL is required");
+  }
+
+  // Validate URLs
+  const validUrls = urls.filter(url => typeof url === 'string' && url.trim() !== '');
+  if (validUrls.length === 0) {
+    throw new Error("No valid image URLs provided");
+  }
+
+  // Update the Salon document by pushing the new URLs to the images array
+  const updatedSalon = await Salon.findOneAndUpdate(
+    { salon_id },
+    { $addToSet: { images: { $each: validUrls } } },
+    {
+      new: true,
+      runValidators: true,
+      projection: { salon_id: 1, images: 1 },
+    }
+  );
+
+  if (!updatedSalon) {
+    throw new Error("Salon not found");
+  }
+
+  return {
+    success: true,
+    message: "Salon images updated successfully",
+    salon: {
+      salon_id: updatedSalon.salon_id,
+      images: updatedSalon.images,
+    },
+  };
+};
+
+export const DELETE_SALON_IMAGE_IN_DB = async ({ salon_id, image_url }) => {
+  // Validate input
+  console.log(image_url);
+  if (!salon_id) {
+    throw new Error("Salon ID is required");
+  }
+  if (!image_url || typeof image_url !== 'string' || image_url.trim() === '') {
+    throw new Error("Valid image URL is required");
+  }
+
+  // Update the Salon document by pulling the specified image URL
+  const updatedSalon = await Salon.findOneAndUpdate(
+    { salon_id },
+    { $pull: { images: image_url.trim() } },
+    {
+      new: true,
+      runValidators: true,
+      projection: { salon_id: 1, images: 1 },
+    }
+  );
+
+  if (!updatedSalon) {
+    throw new Error("Salon not found");
+  }
+
+  // Check if the image was actually removed (optional, for better feedback)
+  const imageExisted = !updatedSalon.images.includes(image_url.trim());
+
+  return {
+    success: true,
+    message: imageExisted ? "Image deleted successfully" : "Image not found in salon",
+    salon: {
+      salon_id: updatedSalon.salon_id,
+      images: updatedSalon.images,
+    },
+  };
+};

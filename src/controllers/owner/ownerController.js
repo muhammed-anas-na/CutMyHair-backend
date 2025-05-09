@@ -21,7 +21,9 @@ import {
     WITHDRAW_AMOUNT_FROM_DB,
     UPDATE_SERVICES_IN_DB,
     UPDATE_CATEGORY_IN_DB,
-    DELETE_STYLIST_FROM_DB
+    DELETE_STYLIST_FROM_DB,
+    UPDATE_SALON_IMAGE_IN_DB,
+    DELETE_SALON_IMAGE_IN_DB
 } from "../../repository/ownerRepository.js";
 import OTP from '../../models/otpModel.js'
 
@@ -432,7 +434,24 @@ export const updateCategory = async(req,res,next)=>{
 export const deleteStylist = async(req,res,next)=>{
   try{
     const response = await DELETE_STYLIST_FROM_DB(req.body);
-    console.log("Response ==>",response);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+
+export const updateSalonImages = async(req,res,next)=>{
+  try{
+    const response = await UPDATE_SALON_IMAGE_IN_DB(req.body);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+
+export const deleteSalonImages = async(req,res,next)=>{
+  try{
+    const response = await DELETE_SALON_IMAGE_IN_DB(req.body);
     res.status(200).json(response);
   }catch(err){
     next(err);
