@@ -17,7 +17,11 @@ import {
     addStylist_TO_DB,
     GET_STYLIST_FROM_SALON_ID,
     GET_OWNER_SETTINGS,
-    GET_FINANCE_REPORT_FROM_DB
+    GET_FINANCE_REPORT_FROM_DB,
+    WITHDRAW_AMOUNT_FROM_DB,
+    UPDATE_SERVICES_IN_DB,
+    UPDATE_CATEGORY_IN_DB,
+    DELETE_STYLIST_FROM_DB
 } from "../../repository/ownerRepository.js";
 import OTP from '../../models/otpModel.js'
 
@@ -389,6 +393,46 @@ export const getFinanceReport = async(req,res,next)=>{
   try{
     const {salon_id} = req.body;
     const response = await GET_FINANCE_REPORT_FROM_DB(salon_id);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+
+export const withdrawAmount = async(req,res,next)=>{
+  try{
+    const {salon_id,amount,upiId} = req.body;
+    const response = await WITHDRAW_AMOUNT_FROM_DB(salon_id,amount,upiId);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+
+export const updateServices = async(req,res,next)=>{
+  try{
+    //const {salon_id,service_id,service_name,service_desc,service_price,service_duration,service_category, service_status,categoryID} = req.body;
+    const response = await UPDATE_SERVICES_IN_DB(req.body);
+    console.log("Response ==>",response);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+
+export const updateCategory = async(req,res,next)=>{
+  try{
+    const response = await UPDATE_CATEGORY_IN_DB(req.body);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+
+export const deleteStylist = async(req,res,next)=>{
+  try{
+    const response = await DELETE_STYLIST_FROM_DB(req.body);
+    console.log("Response ==>",response);
     res.status(200).json(response);
   }catch(err){
     next(err);

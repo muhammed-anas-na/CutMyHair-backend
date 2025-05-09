@@ -1022,7 +1022,7 @@ export const GET_FINANCE_REPORT_FROM_DB = async (salon_id) => {
       salon_id: salon_id,
       status: 'confirmed',
       payment_type:"Online",
-      'payment_details.payment_status': 'success',
+      'payment_details.payment_status': 'completed',
       // appointment_date: { $gte: currentMonthStart, $lte: now }
     });
     
@@ -1031,7 +1031,7 @@ export const GET_FINANCE_REPORT_FROM_DB = async (salon_id) => {
       salon_id: salon_id,
       status: 'confirmed',
       payment_type:"Online",
-      'payment_details.payment_status': 'success',
+      'payment_details.payment_status': 'completed',
       //appointment_date: { $gte: previousMonthStart, $lte: previousMonthEnd }
     });
     
@@ -1071,9 +1071,9 @@ export const GET_FINANCE_REPORT_FROM_DB = async (salon_id) => {
     // Get withdrawal history (mockup - in a real scenario you'd have a separate model)
     // This would need to be replaced with actual withdrawal data from your database
     const withdrawalHistory = [
-      { id: 1, amount: 5000, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7), status: 'completed' },
-      { id: 2, amount: 7500, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14), status: 'completed' },
-      { id: 3, amount: 10000, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 21), status: 'completed' },
+      { id: 1, amount: 70, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7), status: 'completed' },
+      { id: 2, amount: 70, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14), status: 'completed' },
+      { id: 3, amount: 70, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 21), status: 'completed' },
     ];
     
     // Calculate total withdrawn (mockup - would be from actual withdrawal data)
@@ -1083,7 +1083,7 @@ export const GET_FINANCE_REPORT_FROM_DB = async (salon_id) => {
     const formattedTransactions = recentTransactions.map(booking => {
       return {
         id: booking._id.toString(),
-        type: booking.status === 'completed' ? 'deposit' : 'pending',
+        type: booking.status === 'confirmed' || booking.status === 'completed' ? 'deposit' : 'pending',
         amount: booking.total_price,
         date: booking.appointment_date.toISOString().split('T')[0],
         description: `${booking.services.map(s => s.name).join(', ')} - ${booking.stylist || 'Staff'}`
@@ -1152,4 +1152,136 @@ export const GET_FINANCE_REPORT_FROM_DB = async (salon_id) => {
       error: error.message
     };
   }
+};
+
+
+export const WITHDRAW_AMOUNT_FROM_DB = async(salon_id,amount,upiId)=>{
+  return;
+}
+
+export const UPDATE_SERVICES_IN_DB = async (data) => {
+  const {
+    salon_id,
+    service_id,
+    service_name,
+    service_desc,
+    service_price,
+    service_duration,
+    service_category,
+    service_status,
+    categoryID,
+  } = data;
+
+  // Validate required fields
+  if (!salon_id || !service_id) {
+    throw new Error("Salon ID and Service ID are required");
+  }
+
+  // Prepare update object
+  const updateData = {
+    $set: {
+      "services.$.name": service_name,
+      "services.$.description": service_desc,
+      "services.$.price": service_price,
+      "services.$.duration": service_duration,
+      "services.$.category": service_category,
+      "services.$.status": service_status,
+      "services.$.categoryID": categoryID,
+    },
+  };
+
+  // Update service in Salon's services array
+  
+  const updatedSalon = await Salon.findOneAndUpdate(
+    { salon_id: salon_id, "services.service_id": service_id },
+    updateData,
+    {
+      new: true,
+      runValidators: true,
+      projection: { services: { $elemMatch: { service_id } } },
+    }
+  );
+
+  if (!updatedSalon) {
+    throw new Error("Salon or service not found");
+  }
+
+  // Find the updated service
+  const updatedService = updatedSalon.services.find(
+    (service) => service.service_id === service_id
+  );
+
+  return {
+    success: true,
+    message: "Service updated successfully",
+    service: updatedService,
+  };
+};
+
+export const UPDATE_CATEGORY_IN_DB = async (data) => {
+  console.log(data);
+  const { salon_id, category_id, name, description } = data;
+  if (!salon_id || !category_id || !name) {
+    throw new Error("Salon ID, Category ID, and Name are required");
+  }
+  // Prepare update object
+  const updateData = {
+    $set: {
+      "categories.$.name": name,
+      "categories.$.description": description || "",
+    },
+  };
+  const updatedSalon = await Salon.findOneAndUpdate(
+    { salon_id, "categories.category_id": category_id },
+    updateData,
+    {
+      new: true,
+      runValidators: true,
+      projection: { categories: { $elemMatch: { category_id } } },
+    }
+  );
+
+  if (!updatedSalon) {
+    throw new Error("Salon or category not found");
+  }
+  const updatedCategory = updatedSalon.categories.find(
+    (category) => category.category_id === category_id
+  );
+  return {
+    success: true,
+    message: "Category updated successfully",
+    category: updatedCategory,
+  };
+};
+
+export const DELETE_STYLIST_FROM_DB = async ({ salon_id, id }) => {
+  // Validate input
+  if (!salon_id || !id) {
+    throw new Error("Salon ID and Stylist ID are required");
+  }
+
+  // Convert id to ObjectId if necessary
+  if (!mongoose.Types.ObjectId.isValid(id)) {
+    throw new Error("Invalid Stylist ID format");
+  }
+
+  // Update the Stylist document by pulling the stylist with the specified id
+  const updatedStylist = await Stylist.findOneAndUpdate(
+    { salon_id },
+    { $pull: { stylists: { _id: id } } },
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
+
+  if (!updatedStylist) {
+    throw new Error("Salon or stylist not found");
+  }
+
+  return {
+    success: true,
+    message: "Stylist deleted successfully",
+    stylist: updatedStylist,
+  };
 };
