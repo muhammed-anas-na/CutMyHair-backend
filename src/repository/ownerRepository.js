@@ -436,7 +436,7 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
       salon_id,
       date
     } = newAppointment;
-
+    console.log("New appointment===>",newAppointment);
     // Fetch salon details
     const salon = await Salon.findOne({ salon_id });
     if (!salon) {
