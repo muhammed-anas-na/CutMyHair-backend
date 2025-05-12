@@ -5,6 +5,14 @@ import formatWorkingHours from "../utils/formatWorkingHours.js";
 import Booking from "../models/bookingModel.js";
 import UserModel from "moongose/models/user_model.js";
 import Stylist from "../models/StylistModel.js";
+import Razorpay from 'razorpay';
+import dotenv from 'dotenv';
+dotenv.config();
+
+const razorpay = new Razorpay({
+  key_id: process.env.key_id,
+  key_secret: process.env.key_secret,
+});
 
 export const addOwnerToDB = async(name, phone_number)=>{
     return Owner.insertMany({
@@ -113,7 +121,7 @@ export const updateWorkingHour_ON_DB = async (salon_id, workingHours) => {
     if (!salon_id) {
       throw new Error('Salon ID is required');
     }
-
+    console.log(workingHours)
     // Validate and convert working hours to IST Date objects
     const updateData = {};
     for (const [day, hours] of Object.entries(workingHours)) {
@@ -150,7 +158,7 @@ export const updateWorkingHour_ON_DB = async (salon_id, workingHours) => {
       { $set: updateData },
       { new: true }
     );
-
+    console.log("Updated Salon==>",updatedSalon)
     if (!updatedSalon) {
       throw new Error(`Salon with ID ${salon_id} not found`);
     }
@@ -430,7 +438,7 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
     } = newAppointment;
 
     // Fetch salon details
-    const salon = await Salon.findOne({ salon_id: salon_id });
+    const salon = await Salon.findOne({ salon_id });
     if (!salon) {
       throw new Error('Salon not found');
     }
@@ -441,33 +449,43 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
       requestedServiceIds.includes(service.service_id)
     );
 
-    if (matchedServices.length === 0 || matchedServices.length !== services.length) {
+    if (matchedServices.length !== services.length) {
       throw new Error('One or more requested services not found in salon');
     }
 
     // Calculate total price and duration
-    const totalPrice = matchedServices.reduce((sum, service) => 
-      sum + parseFloat(service.price), 0);
-    const totalDuration = matchedServices.reduce((sum, service) => 
-      sum + parseInt(service.duration), 0);
+    const totalPrice = matchedServices.reduce((sum, service) => sum + parseFloat(service.price), 0);
+    const totalDuration = matchedServices.reduce((sum, service) => sum + parseInt(service.duration), 0);
 
     // Parse appointment date and time
     const appointmentDate = new Date(date);
     const [hours, minutes] = time.split(':');
     appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
+    // Convert appointment date to UTC
+    const utcAppointmentDate = new Date(appointmentDate.getTime() - (5 * 60 + 30) * 60 * 1000);
+
     // Calculate end time
     const endTime = new Date(appointmentDate);
     endTime.setMinutes(endTime.getMinutes() + totalDuration);
 
-    // Format start and end time in local IST format (like the first entry)
-    const formattedStartTime = appointmentDate.toString();
-    const formattedEndTime = endTime.toString();
+    // Convert end time to UTC
+    const utcEndTime = new Date(endTime.getTime() - (5 * 60 + 30) * 60 * 1000);
+
+    // Format start and end time in IST format for display
+    const options = { 
+      weekday: 'short', year: 'numeric', month: 'short', day: '2-digit', 
+      hour: '2-digit', minute: '2-digit', second: '2-digit', 
+      timeZone: 'Asia/Kolkata', timeZoneName: 'longOffset', hour12: false 
+    };
+    const formattedStartTime = appointmentDate.toLocaleString('en-US', options) + ' (India Standard Time)';
+    const formattedEndTime = endTime.toLocaleString('en-US', options) + ' (India Standard Time)';
 
     // Generate unique IDs
-    const bookingId = `BOOK_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const paymentId = `PAY_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const orderId = `ORD_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const generateId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const bookingId = generateId('BOOK');
+    const paymentId = generateId('PAY');
+    const orderId = generateId('ORD');
 
     // Format services for Booking schema
     const formattedServices = matchedServices.map(service => ({
@@ -480,10 +498,10 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
     // Create new booking document
     const booking = new Booking({
       salon_name: defaultSalon,
-      salon_id: salon_id,
-      user_id: customer.name, // Should ideally be a proper user ID
+      salon_id,
+      user_id: customer.name,
       services: formattedServices,
-      appointment_date: appointmentDate,
+      appointment_date: utcAppointmentDate,
       scheduled_start_time: formattedStartTime,
       scheduled_end_time: formattedEndTime,
       total_price: totalPrice,
@@ -501,7 +519,7 @@ export const addNewAppoint_By_Owner_Into_DB = async (newAppointment) => {
       buffer_time: 5,
       reminder_sent: false,
       late_notification_sent: false,
-      stylist: stylist,
+      stylist,
       payment_type: 'Offline'
     });
 
@@ -1071,9 +1089,9 @@ export const GET_FINANCE_REPORT_FROM_DB = async (salon_id) => {
     // Get withdrawal history (mockup - in a real scenario you'd have a separate model)
     // This would need to be replaced with actual withdrawal data from your database
     const withdrawalHistory = [
-      { id: 1, amount: 70, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7), status: 'completed' },
-      { id: 2, amount: 70, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14), status: 'completed' },
-      { id: 3, amount: 70, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 21), status: 'completed' },
+      { id: 1, amount: 0, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7), status: 'completed' },
+      { id: 2, amount: 0, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 14), status: 'completed' },
+      { id: 3, amount: 0, date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 21), status: 'completed' },
     ];
     
     // Calculate total withdrawn (mockup - would be from actual withdrawal data)
@@ -1154,10 +1172,85 @@ export const GET_FINANCE_REPORT_FROM_DB = async (salon_id) => {
   }
 };
 
+// WITHDRAW_AMOUNT_FROM_DB function
+export const WITHDRAW_AMOUNT_FROM_DB = async (salon_id, amount, upiId) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-export const WITHDRAW_AMOUNT_FROM_DB = async(salon_id,amount,upiId)=>{
-  return;
-}
+  try {
+    // Validate inputs
+    if (!salon_id || !amount || !upiId) {
+      throw new Error('Missing required parameters: salon_id, amount, or upiId');
+    }
+    if (amount <= 0) {
+      throw new Error('Amount must be greater than zero');
+    }
+
+    // Check if salon exists and has sufficient balance
+    const salon = await Salon.findOne({ salon_id }).session(session);
+    if (!salon) {
+      throw new Error('Salon not found');
+    }
+    if (salon.balance < amount) {
+      throw new Error('Insufficient balance for withdrawal');
+    }
+
+    // Convert amount to paise (Razorpay requires amount in paise)
+    // const amountInPaise = Math.round(amount * 100);
+
+    // Create Razorpay payout
+    const payoutData = {
+      account_number: 'IPVVfvcYIsVDBK', // Your Razorpay fund account ID
+      amount: amount,
+      currency: 'INR',
+      mode: 'UPI',
+      purpose: 'payout',
+      fund_account: {
+        account_type: 'vpa',
+        vpa: {
+          address: upiId,
+        },
+      },
+      queue_if_low_balance: true,
+      reference_id: `PAYOUT_${salon_id}_${Date.now()}`,
+      narration: `Payout to salon ${salon_id}`,
+    };
+    console.log(payoutData);
+    const payoutResponse = await razorpay.orders.create(payoutData);
+
+    // Update salon balance
+    salon.balance -= amount;
+    await salon.save({ session });
+
+    // Log payout in Payout collection
+    const payout = new Payout({
+      salon_id,
+      amount,
+      upi_id: upiId,
+      payout_id: payoutResponse.id,
+      status: payoutResponse.status === 'processed' ? 'processed' : 'pending',
+      razorpay_response: payoutResponse,
+    });
+    await payout.save({ session });
+
+    // Commit transaction
+    await session.commitTransaction();
+
+    return {
+      success: true,
+      message: 'Payout initiated successfully',
+      payout_id: payoutResponse.id,
+      status: payoutResponse.status,
+    };
+  } catch (error) {
+    // Abort transaction on error
+    await session.abortTransaction();
+    console.log(error.error)
+    throw new Error(`Payout failed: ${error}`);
+  } finally {
+    session.endSession();
+  }
+};
 
 export const UPDATE_SERVICES_IN_DB = async (data) => {
   const {
