@@ -21,10 +21,11 @@ const isProduction = process.env.NODE_ENV === 'prod';
 console.log("Env ==>" , process.env.NODE_ENV  , isProduction);
 // Middleware setup
 app.use(express.json());
-app.use(cors({
-    origin: isProduction ? 'https://cut-my-hair-frontend.vercel.app' : 'http://localhost:3000',
-    credentials: true,
-}));
+const allowedOrigins = isProduction 
+  ? ['https://cut-my-hair-frontend.vercel.app'] 
+  : ['http://69.62.78.176:3000', 'http://localhost:3000'];
+
+app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 app.use(
     session({
