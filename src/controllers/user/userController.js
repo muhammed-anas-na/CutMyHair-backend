@@ -14,7 +14,8 @@ import {
   getAllSalons_From_DB,
   AddFavoritesToDB,
   RemoveFavorites_FROM_DB,
-  getFavorites_FROM_DB
+  getFavorites_FROM_DB,
+  GET_USER_DETAILS_FROM_DB
 } from '../../repository/userRepository.js';
 import axios from 'axios';
 import Salon from '../../models/salonModel.js';
@@ -551,6 +552,19 @@ export const getAllFavorites = async(req,res,next)=>{
       return res.status(400).json({success: false, message: "All Fields Required"})
     }
     const data = await getFavorites_FROM_DB(user_id)
+    return res.status(200).json({success:true, data})
+  }catch(err){
+    next(err);
+  }
+}
+
+export const getUserDetails = async(req,res,next)=>{
+  try{
+    const {user_id} = req.body;
+    if(!user_id){
+      return res.status(400).json({success: false, message: "All Fields Required"})
+    }
+    const data = await GET_USER_DETAILS_FROM_DB(user_id)
     return res.status(200).json({success:true, data})
   }catch(err){
     next(err);

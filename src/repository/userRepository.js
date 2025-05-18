@@ -61,15 +61,20 @@ export const findUserFromDB_BY_Number = async(phone_number)=>{
     })
 }
 
-export const getNearestSalon_From_DB = async (latitude, longitude, radius = 500, user_id) => {
+export const getNearestSalon_From_DB = async (latitude, longitude, radius = 5, user_id) => {
     try {
       // Parse inputs to ensure they're numbers
       const lat = parseFloat(latitude);
       const lng = parseFloat(longitude);
-      console.log(latitude, longitude);
+      const inputRadius = parseFloat(radius);
+      if (isNaN(inputRadius) || inputRadius < 0) {
+        throw new Error("Invalid radius");
+      }
+      if (isNaN(lat) || isNaN(lng)) {
+        throw new Error("Invalid latitude or longitude");
+      }
       // Enforce a minimum search radius of 1km (1000m)
-      const searchRadius = Math.max(parseFloat(radius), 1000);
-      
+      const searchRadius = Math.max(inputRadius * 1000, 1000);
       // Direct MongoDB find with $nearSphere
       const salons = await Salon.find({
         location: {
@@ -162,7 +167,6 @@ export const getNearestSalon_From_DB = async (latitude, longitude, radius = 500,
 
   export const confirm_booking_on_DB = async (bookingData) => {
     try {
-      console.log("Booking Data==>", bookingData);
       if (!bookingData) {
         throw new Error('Booking data is required');
       }
@@ -283,7 +287,6 @@ export const getNearestSalon_From_DB = async (latitude, longitude, radius = 500,
   
       const newBooking = new Booking(bookingObject);
       await newBooking.save();
-      console.log('New Booking:', newBooking);
       return newBooking;
   
     } catch (error) {
@@ -416,8 +419,6 @@ export const search_FROM_DB = async (searchParams = {}) => {
     
     // Handle different search types
     if (searchType == 'location' && query) {
-      // Search by location text or name
-      console.log("Location query")
       queryObj = {
         $or: [
           { location_text: { $regex: query, $options: 'i' } },
@@ -426,14 +427,10 @@ export const search_FROM_DB = async (searchParams = {}) => {
         ]
       };
     } else if (searchType === 'service' && query) {
-      // Search for salons that offer a specific service
-      console.log("Service query")
       queryObj = {
         'services.name': { $regex: query, $options: 'i' }
       };
     } else if (query) {
-      console.log("Other query")
-      // General search across multiple fields
       queryObj = {
         $or: [
           { name: { $regex: query, $options: 'i' } },
@@ -448,7 +445,6 @@ export const search_FROM_DB = async (searchParams = {}) => {
     if (userLocation && userLocation.latitude && userLocation.longitude) {
       const radiusInKm = userLocation.radius || 10;
       const radiusInRadians = radiusInKm / 6371; // Earth's radius in km
-      console.log("User have location")
       queryObj = {
         ...queryObj,
         location: {
@@ -462,8 +458,6 @@ export const search_FROM_DB = async (searchParams = {}) => {
       };
     }
     
-    // Execute query with pagination
-    console.log("QUery =>",queryObj);
     const salons = await Salon.find(queryObj)
       .skip(skip)
       .limit(limit);
@@ -661,7 +655,6 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   // Process results to include distance
 function processResults(salons, userLat, userLng) {
     return salons.map(salon => {
-        console.log("Salon=>",salon)
       const salonLng = parseFloat(salon.location.coordinates[0]);
       const salonLat = parseFloat(salon.location.coordinates[1]);
       const distance = calculateDistance(userLat, userLng, salonLat, salonLng)
@@ -672,6 +665,12 @@ function processResults(salons, userLat, userLng) {
         distanceInKm: Math.round(distance * 10) / 10
       };
     }).sort((a, b) => a.distance - b.distance);
+}
+
+export const GET_USER_DETAILS_FROM_DB=(user_id)=>{
+  return UserModel.findOne({
+    user_id
+  })
 }
   
   

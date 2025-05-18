@@ -17,7 +17,8 @@ import { sendOTP,
     getAllSalons,
     addToFavorites,
     removeFromFavorites,
-    getAllFavorites
+    getAllFavorites,
+    getUserDetails
 } from '../controllers/user/userController.js';
 import { authenticateToken } from '../middlewares/validatejwt.js';
 const router = express.Router();
@@ -40,4 +41,6 @@ router.get('/get-all-salons', getAllSalons)
 router.post('/add-to-favorites', addToFavorites)
 router.post('/remove-from-favorites', removeFromFavorites)
 router.post('/get-favorites', getAllFavorites)
+router.post('/get-user-details' , getUserDetails)
+
 export default router;
