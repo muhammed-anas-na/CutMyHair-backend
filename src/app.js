@@ -24,7 +24,6 @@ app.use(express.json());
 const allowedOrigins = isProduction 
   ? ['https://cut-my-hair-frontend.vercel.app'] 
   : ['http://69.62.78.176:3000', 'http://localhost:3000'];
-
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 app.use(
