@@ -23,7 +23,8 @@ import {
     UPDATE_CATEGORY_IN_DB,
     DELETE_STYLIST_FROM_DB,
     UPDATE_SALON_IMAGE_IN_DB,
-    DELETE_SALON_IMAGE_IN_DB
+    DELETE_SALON_IMAGE_IN_DB,
+    checkOTPEnabledByAdmin
 } from "../../repository/ownerRepository.js";
 import OTP from '../../models/otpModel.js'
 
@@ -48,6 +49,52 @@ export const sendOTP = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Phone number not registered' });
     }
 
+    const isOTPEnabled = await checkOTPEnabledByAdmin();
+    if(!isOTPEnabled){
+      if (from === 'login') {
+        const existingOwner = await findOwnerFromDB_BY_Number(phone_number);
+        if (!existingOwner) {
+          return res.status(401).json({ success: false, message: 'No owner found' });
+        }
+        
+        const token = generateToken(
+          { owner_id: existingOwner.owner_id, phone_number },
+          existingOwner.role
+        );
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Login successful',
+          data: { 
+            owner_id: existingOwner.owner_id, 
+            access_token: token 
+          },
+        });
+      } else if (from === 'register') {
+        const existingOwner = await findOwnerFromDB_BY_Number(phone_number);
+        if (existingOwner) {
+          return res.status(400).json({ 
+            success: false, 
+            message: 'Phone number already used' 
+          });
+        }
+        
+        const response = await addOwnerToDB(name, phone_number);
+        const token = generateToken(
+          { owner_id: response[0].owner_id, phone_number },
+          response[0].role
+        );
+        
+        return res.status(200).json({
+          success: true,
+          message: 'Owner Registration successful',
+          data: { 
+            owner_id: response[0].owner_id, 
+            access_token: token 
+          },
+        });
+      }
+    }
     // Generate and store OTP using the schema
     const { otpId, otp } = await OTP.generateOTP(phone_number, from);
     
