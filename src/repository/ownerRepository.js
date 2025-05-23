@@ -7,6 +7,7 @@ import UserModel from "moongose/models/user_model.js";
 import Stylist from "../models/StylistModel.js";
 import Razorpay from 'razorpay';
 import dotenv from 'dotenv';
+import AdminSettings from "../models/adminSettingsModel.js";
 dotenv.config();
 
 const razorpay = new Razorpay({
@@ -1457,3 +1458,8 @@ export const DELETE_SALON_IMAGE_IN_DB = async ({ salon_id, image_url }) => {
     },
   };
 };
+
+export const checkOTPEnabledByAdmin = async()=>{
+  const adminSettings = await AdminSettings.findOne();
+  return adminSettings.isOTPEnabled;
+}
