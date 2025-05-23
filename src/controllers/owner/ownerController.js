@@ -30,7 +30,7 @@ import OTP from '../../models/otpModel.js'
 
 export const sendOTP = async (req, res, next) => {
   try {
-    const { phone_number, from } = req.body;
+    const { phone_number, from, name } = req.body;
 
     if (!phone_number) {
       return res.status(400).json({ success: false, message: 'Phone number is required' });
