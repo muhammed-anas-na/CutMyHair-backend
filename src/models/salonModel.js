@@ -18,7 +18,7 @@ const serviceSchema = new mongoose.Schema({
 });
 
 const categorySchema = new mongoose.Schema({
-  category_id: { type: String, required: true, unique: true },
+  category_id: { type: String, required: true },
   name: { type: String, required: true },
   description: { type: String }
 });

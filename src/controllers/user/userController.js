@@ -198,6 +198,7 @@ export const getLocationFromText = async (req, res, next) => {
 
 export const getNearestSalon = async(req,res,next)=>{
   try{
+    console.log("Nearest salon fun")
     const {latitude, longitude, radius=5, user_id} = req.body;
     if(!latitude || !longitude || !radius) return res.status(400).json({success: false, message: "All field required"});
     const response = await getNearestSalon_From_DB(latitude,longitude,radius, user_id);

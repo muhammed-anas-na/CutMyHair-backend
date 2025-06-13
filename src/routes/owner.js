@@ -23,7 +23,8 @@ import {
     updateCategory,
     deleteStylist,
     updateSalonImages,
-    deleteSalonImages
+    deleteSalonImages,
+    createCoupon
 } from '../controllers/owner/ownerController.js';
 
 const router = express.Router();
@@ -51,5 +52,6 @@ router.post('/update-category' , updateCategory)
 router.post('/delete-stylist', deleteStylist)
 router.post('/update-salon-images',updateSalonImages)
 router.post('/delete-salon-images', deleteSalonImages)
+router.post('/create-coupon', createCoupon)
 
 export default router;

@@ -24,7 +24,8 @@ import {
     DELETE_STYLIST_FROM_DB,
     UPDATE_SALON_IMAGE_IN_DB,
     DELETE_SALON_IMAGE_IN_DB,
-    checkOTPEnabledByAdmin
+    checkOTPEnabledByAdmin,
+    CREATE_COUPON_IN_DB
 } from "../../repository/ownerRepository.js";
 import OTP from '../../models/otpModel.js'
 
@@ -61,15 +62,6 @@ export const sendOTP = async (req, res, next) => {
           { owner_id: existingOwner.owner_id, phone_number },
           existingOwner.role
         );
-        
-        return res.status(200).json({
-          success: true,
-          message: 'Login successful',
-          data: { 
-            owner_id: existingOwner.owner_id, 
-            access_token: token 
-          },
-        });
       } else if (from === 'register') {
         const existingOwner = await findOwnerFromDB_BY_Number(phone_number);
         if (existingOwner) {
@@ -80,6 +72,7 @@ export const sendOTP = async (req, res, next) => {
         }
         
         const response = await addOwnerToDB(name, phone_number);
+        console.log(response);
         const token = generateToken(
           { owner_id: response[0].owner_id, phone_number },
           response[0].role
@@ -248,7 +241,7 @@ export const addSalon = async (req, res, next) => {
             data: { salon_id: salon.salon_id },
         });
     } catch (error) {
-        next(err);
+        next(error);
     }
 };
 
@@ -499,6 +492,15 @@ export const updateSalonImages = async(req,res,next)=>{
 export const deleteSalonImages = async(req,res,next)=>{
   try{
     const response = await DELETE_SALON_IMAGE_IN_DB(req.body);
+    res.status(200).json(response);
+  }catch(err){
+    next(err);
+  }
+}
+
+export const createCoupon = async(req,res,next)=>{
+  try{
+    const response = await CREATE_COUPON_IN_DB(req.body);
     res.status(200).json(response);
   }catch(err){
     next(err);
