@@ -33,7 +33,7 @@ const ownerSchema = new mongoose.Schema(
         },
         isVerified: {
             type: Boolean,
-            default: true,
+            default: false,
         },
         salons: [
             {
@@ -43,6 +43,10 @@ const ownerSchema = new mongoose.Schema(
                 },
             },
         ],
+        numberofLogins: {
+            type: Number,
+            default: 0,
+        },
     },
     {
         timestamps: true,

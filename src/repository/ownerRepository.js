@@ -8,6 +8,7 @@ import Stylist from "../models/StylistModel.js";
 import Razorpay from 'razorpay';
 import dotenv from 'dotenv';
 import AdminSettings from "../models/adminSettingsModel.js";
+import Coupon from "../models/CouponModel.js";
 dotenv.config();
 
 const razorpay = new Razorpay({
@@ -1462,4 +1463,15 @@ export const DELETE_SALON_IMAGE_IN_DB = async ({ salon_id, image_url }) => {
 export const checkOTPEnabledByAdmin = async()=>{
   const adminSettings = await AdminSettings.findOne();
   return adminSettings.isOTPEnabled;
+}
+
+export const CREATE_COUPON_IN_DB = async(data)=>{
+try{
+  const {code, discountPercentage, expirationDate, maxUses, validForFirstTimeUsers} = data;
+  const coupon = new Coupon({code, discountPercentage, expirationDate, maxUses, validForFirstTimeUsers});
+  await coupon.save();
+  return coupon;
+}catch(err){
+  return err;
+}
 }
