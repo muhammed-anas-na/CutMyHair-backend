@@ -21,6 +21,7 @@ import axios from 'axios';
 import Salon from '../../models/salonModel.js';
 import Booking from '../../models/bookingModel.js';
 import OTP from '../../models/otpModel.js'
+import axios from 'axios';
 
 const razorpay = new Razorpay({
   key_id: 'rzp_test_SNNaKxo04yi7Lf',
@@ -46,22 +47,49 @@ export const sendOTP = async (req, res, next) => {
 
     // Generate and store OTP
     const { otpId, otp } = await OTP.generateOTP(phone_number, from);
-    
+
     console.log(`OTP for ${phone_number}: ${otp}`);
+
+    // Send OTP via Infobip
+    const messageText = `Your OTP is ${otp}. It is valid for 5 minutes.`;
+
+    const infobipResponse = await axios.post(
+      'https://e5kzzr.api.infobip.com/sms/2/text/advanced',
+      {
+        messages: [
+          {
+            destinations: [{ to: phone_number }],
+            from: "447491163443",
+            text: messageText
+          }
+        ]
+      },
+      {
+        headers: {
+          'Authorization': 'App 9e80f36c296afb5e73f2284681cb7680-7ef14a8d-f3f1-4b33-99f3-4af1997e62d3',
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      }
+    );
+
+    console.log('Infobip response:', infobipResponse.data);
 
     return res.status(200).json({
       success: true,
       message: 'OTP sent successfully',
-      data: { 
-        otpId, // Send this to client instead of the actual OTP
+      data: {
+        otpId,
         otp_expiry: 300 
       },
     });
 
   } catch (err) {
+    console.error('Error in sendOTP:', err);
     next(err);
   }
 };
+
 
 export const verifyOTP = async (req, res, next) => {
   try {
