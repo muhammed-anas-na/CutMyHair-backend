@@ -21,7 +21,6 @@ import axios from 'axios';
 import Salon from '../../models/salonModel.js';
 import Booking from '../../models/bookingModel.js';
 import OTP from '../../models/otpModel.js'
-import axios from 'axios';
 
 const razorpay = new Razorpay({
   key_id: 'rzp_test_SNNaKxo04yi7Lf',
