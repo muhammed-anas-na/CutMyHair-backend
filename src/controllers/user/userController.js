@@ -21,11 +21,17 @@ import axios from 'axios';
 import Salon from '../../models/salonModel.js';
 import Booking from '../../models/bookingModel.js';
 import OTP from '../../models/otpModel.js'
+import dotenv from 'dotenv';
+dotenv.config();
 
 const razorpay = new Razorpay({
   key_id: 'rzp_test_SNNaKxo04yi7Lf',
   key_secret: '8p02U92ji39GYBIQ7om8QUYX',
 })
+
+import twilio from 'twilio';
+
+const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
 export const sendOTP = async (req, res, next) => {
   try {
@@ -46,33 +52,16 @@ export const sendOTP = async (req, res, next) => {
 
     // Generate and store OTP
     const { otpId, otp } = await OTP.generateOTP(phone_number, from);
-
     console.log(`OTP for ${phone_number}: ${otp}`);
 
-    // Send OTP via Infobip
-    const messageText = `Your OTP is ${otp}. It is valid for 5 minutes.`;
+    //Uncomment this line to send OTP using Twilio
+    const message = await twilioClient.messages.create({
+      body: `Your OTP is ${otp}.`,
+      from: '+14177645635',
+      to: '+918089568695'
+    });
+    //console.log('Twilio message sent:', message.sid);
 
-    const infobipResponse = await axios.post(
-      'https://e5kzzr.api.infobip.com/sms/2/text/advanced',
-      {
-        messages: [
-          {
-            destinations: [{ to: phone_number }],
-            from: "447491163443",
-            text: messageText
-          }
-        ]
-      },
-      {
-        headers: {
-          'Authorization': 'App 9e80f36c296afb5e73f2284681cb7680-7ef14a8d-f3f1-4b33-99f3-4af1997e62d3',
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      }
-    );
-
-    console.log('Infobip response:', infobipResponse.data);
 
     return res.status(200).json({
       success: true,
@@ -88,6 +77,7 @@ export const sendOTP = async (req, res, next) => {
     next(err);
   }
 };
+
 
 
 export const verifyOTP = async (req, res, next) => {

@@ -23,7 +23,7 @@ console.log("Env ==>" , process.env.NODE_ENV  , isProduction);
 app.use(express.json());
 const allowedOrigins = isProduction 
   ? ['https://cut-my-hair-frontend.vercel.app'] 
-  : ['http://69.62.78.176:3000', 'http://localhost:3000', 'http://localhost:8081'];
+  : ['http://69.62.78.176:3000', 'http://localhost:3000', 'http://localhost:8081', 'http://192.168.1.130:8081'];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 
 app.use(
