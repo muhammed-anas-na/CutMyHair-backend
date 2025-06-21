@@ -275,10 +275,10 @@ export const getNearestSalon_From_DB = async (latitude, longitude, radius = 5, u
         total_price: Number(bookingData.total_price),
         total_duration: totalDuration,
         payment_details: {
-          payment_id: bookingData.payment_details.payment_id,
-          order_id: bookingData.payment_details.order_id,
-          signature: bookingData.payment_details.signature,
-          payment_status: 'completed',
+          // payment_id: bookingData.payment_details.payment_id,
+          // order_id: bookingData.payment_details.order_id,
+          // signature: bookingData.payment_details.signature,
+          payment_status: 'offline',
         },
         status: bookingData.status || 'confirmed',
         booking_date: new Date(), // Store as proper UTC Date
@@ -286,6 +286,7 @@ export const getNearestSalon_From_DB = async (latitude, longitude, radius = 5, u
       };
   
       const newBooking = new Booking(bookingObject);
+      console.log(newBooking);
       await newBooking.save();
       return newBooking;
   

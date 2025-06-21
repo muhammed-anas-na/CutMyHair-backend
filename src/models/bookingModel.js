@@ -13,10 +13,10 @@ const ServiceSchema = new Schema({
 });
 
 const PaymentDetailsSchema = new Schema({
-  payment_id: { type: String, required: true },
-  order_id: { type: String, required: true },
-  signature: { type: String, required: true },
-  payment_status: { type: String, default: "success" }
+  payment_id: { type: String},
+  order_id: { type: String},
+  signature: { type: String},
+  payment_status: { type: String}
 });
 
 const BookingSchema = new Schema({
@@ -42,12 +42,11 @@ const BookingSchema = new Schema({
   total_price: { type: Number, required: true, min: 0 },
   notes: { type: String },
   total_duration: { type: Number, required: true, min: 0 },
-  payment_details: { type: PaymentDetailsSchema, required: true },
+  payment_details: { type: PaymentDetailsSchema},
   status: {
     type: String,
     required: true,
     enum: bookingStatusEnum,
-    default: 'confirmed'
   },
   booking_date: { type: Date, required: true, default: Date.now },
   buffer_time: { type: Number, default: 5 },

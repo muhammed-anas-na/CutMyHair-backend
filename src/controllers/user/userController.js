@@ -55,11 +55,11 @@ export const sendOTP = async (req, res, next) => {
     console.log(`OTP for ${phone_number}: ${otp}`);
 
     //Uncomment this line to send OTP using Twilio
-    const message = await twilioClient.messages.create({
-      body: `Your OTP is ${otp}.`,
-      from: '+14177645635',
-      to: '+918089568695'
-    });
+    // const message = await twilioClient.messages.create({
+    //   body: `Your OTP is ${otp}.`,
+    //   from: '+14177645635',
+    //   to: '+918089568695'
+    // });
     //console.log('Twilio message sent:', message.sid);
 
 
@@ -536,10 +536,12 @@ export const getAllSalons = async(req,res,next)=>{
 
 export const addToFavorites = async(req,res,next)=>{
   try{
+    console.log("Add to favorites")
     const {salon_id , user_id} = req.body;
     if(!salon_id || !user_id){
       return res.status(400).json({success: false, message: "All Fields Requried"})
     }
+
     const response = await AddFavoritesToDB(salon_id, user_id);
     return res.status(200).json({success:true, response});
   }catch(err){
@@ -550,6 +552,7 @@ export const addToFavorites = async(req,res,next)=>{
 
 export const removeFromFavorites = async(req,res,next)=>{
   try{
+    console.log("Remove favorites")
     const {salon_id , user_id} = req.body;
     if(!salon_id || !user_id){
       return res.status(400).json({success: false, message: "All Fields Requried"})
